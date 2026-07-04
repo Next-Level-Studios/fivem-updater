@@ -35,22 +35,26 @@ def _interactive_config(
         server_cfg_file=server_cfg_file,
     )
     if not config.get("server_dir"):
-        config["server_dir"] = Prompt.ask("FiveM server directory")
+        config["server_dir"] = Prompt.ask("FiveM artifact/server directory (where run.sh and alpine/ are installed)")
     if server_cfg is None and server_cfg_dir is None and server_cfg_file is None:
         current_cfg = Path(config.get("server_cfg") or "server.cfg")
         default_cfg_dir = str(current_cfg.parent) if str(current_cfg.parent) != "." else "."
         default_cfg_file = current_cfg.name or "server.cfg"
+        console.print(
+            "[dim]Your server config can live anywhere. Use '.' only if the cfg is directly in the FiveM server directory.[/]"
+        )
         config["server_cfg_dir"] = Prompt.ask(
-            "Server config directory (relative to server dir, or absolute)",
+            "Directory containing your server cfg (absolute path, or relative to the FiveM server directory)",
             default=default_cfg_dir,
         )
-        config["server_cfg_file"] = Prompt.ask("Server config filename", default=default_cfg_file)
+        config["server_cfg_file"] = Prompt.ask("Server config filename, e.g. server.cfg or server.dev.cfg", default=default_cfg_file)
         config = merge_config(config)
     config["service_name"] = Prompt.ask("Service name", default=config.get("service_name", "fivem"))
     config["run_user"] = Prompt.ask("Linux user to run FiveM as", default=config.get("run_user") or default_run_user())
     config["console_mode"] = "tmux"
 
     cfg_path = resolve_server_cfg(config)
+    info(f"Resolved server cfg path: {cfg_path}")
     if not cfg_path.exists():
         warn(f"Config file not found yet: {cfg_path}")
         if not Confirm.ask("Save anyway?", default=True):
