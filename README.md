@@ -31,6 +31,20 @@ First-run config:
 sudo updatefivem config
 ```
 
+During config setup you can keep the config inside the server directory, or
+point at a separate directory and filename. Examples:
+
+```bash
+# Config inside the FiveM server directory
+sudo updatefivem config --server-dir /opt/fivem/server --config-dir configs/live --config-file production.cfg
+
+# Config outside the FiveM server directory
+sudo updatefivem config --server-dir /opt/fivem/server --config-dir /etc/fivem/configs --config-file production.cfg
+
+# Equivalent one-shot absolute config path
+sudo updatefivem config --server-dir /opt/fivem/server --config /etc/fivem/configs/production.cfg
+```
+
 Check selected artifact:
 
 ```bash

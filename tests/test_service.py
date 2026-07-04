@@ -31,6 +31,31 @@ def test_render_systemd_unit_quotes_config_with_spaces():
     assert "configs/live server.cfg" in unit
 
 
+def test_render_systemd_unit_uses_absolute_config_path_outside_server_dir():
+    unit = render_systemd_unit({
+        "server_dir": "/opt/fivem/server",
+        "server_cfg": "/etc/fivem/configs/production.cfg",
+        "service_name": "fivem",
+        "run_user": "neo",
+        "console_mode": "tmux",
+    })
+
+    assert "./run.sh +exec /etc/fivem/configs/production.cfg" in unit
+
+
+def test_render_systemd_unit_combines_config_dir_and_filename():
+    unit = render_systemd_unit({
+        "server_dir": "/opt/fivem/server",
+        "server_cfg_dir": "/etc/fivem/configs",
+        "server_cfg_file": "city.cfg",
+        "service_name": "fivem",
+        "run_user": "neo",
+        "console_mode": "tmux",
+    })
+
+    assert "./run.sh +exec /etc/fivem/configs/city.cfg" in unit
+
+
 def test_invalid_service_name_rejected():
     with pytest.raises(ValueError):
         validate_service_name("five;m")

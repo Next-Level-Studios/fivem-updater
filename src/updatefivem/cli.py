@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 import typer
 from rich.prompt import Confirm, Prompt
 
 from .artifacts import ARTIFACT_PAGE_URL, download_artifact, fetch_artifact_page, parse_artifacts, resolve_artifact
-from .config import default_run_user, load_config, merge_config, save_config, validate_config
+from .config import default_run_user, load_config, merge_config, resolve_server_cfg, save_config, validate_config
 from .installer import install_archive
 from .paths import cache_dir
 from .service import install_service, systemctl_args, tmux_session_exists, validate_service_name
@@ -20,17 +19,38 @@ service_app = typer.Typer(help="Install or inspect the tmux-backed systemd servi
 app.add_typer(service_app, name="service")
 
 
-def _interactive_config(existing: dict | None = None, *, server_dir: str | None = None, server_cfg: str | None = None) -> dict:
-    config = merge_config(existing, server_dir=server_dir, server_cfg=server_cfg)
+def _interactive_config(
+    existing: dict | None = None,
+    *,
+    server_dir: str | None = None,
+    server_cfg: str | None = None,
+    server_cfg_dir: str | None = None,
+    server_cfg_file: str | None = None,
+) -> dict:
+    config = merge_config(
+        existing,
+        server_dir=server_dir,
+        server_cfg=server_cfg,
+        server_cfg_dir=server_cfg_dir,
+        server_cfg_file=server_cfg_file,
+    )
     if not config.get("server_dir"):
         config["server_dir"] = Prompt.ask("FiveM server directory")
-    if not config.get("server_cfg"):
-        config["server_cfg"] = Prompt.ask("Server config file", default="server.cfg")
+    if server_cfg is None and server_cfg_dir is None and server_cfg_file is None:
+        current_cfg = Path(config.get("server_cfg") or "server.cfg")
+        default_cfg_dir = str(current_cfg.parent) if str(current_cfg.parent) != "." else "."
+        default_cfg_file = current_cfg.name or "server.cfg"
+        config["server_cfg_dir"] = Prompt.ask(
+            "Server config directory (relative to server dir, or absolute)",
+            default=default_cfg_dir,
+        )
+        config["server_cfg_file"] = Prompt.ask("Server config filename", default=default_cfg_file)
+        config = merge_config(config)
     config["service_name"] = Prompt.ask("Service name", default=config.get("service_name", "fivem"))
     config["run_user"] = Prompt.ask("Linux user to run FiveM as", default=config.get("run_user") or default_run_user())
     config["console_mode"] = "tmux"
 
-    cfg_path = Path(config["server_dir"]) / config["server_cfg"]
+    cfg_path = resolve_server_cfg(config)
     if not cfg_path.exists():
         warn(f"Config file not found yet: {cfg_path}")
         if not Confirm.ask("Save anyway?", default=True):
@@ -46,13 +66,30 @@ def _interactive_config(existing: dict | None = None, *, server_dir: str | None 
     return config
 
 
-def _load_or_create_config(server_dir: str | None = None, server_cfg: str | None = None) -> dict:
+def _load_or_create_config(
+    server_dir: str | None = None,
+    server_cfg: str | None = None,
+    server_cfg_dir: str | None = None,
+    server_cfg_file: str | None = None,
+) -> dict:
     existing = load_config()
     if existing is None:
         info("No config found. First-run setup time.")
-        return _interactive_config(existing, server_dir=server_dir, server_cfg=server_cfg)
-    config = merge_config(existing, server_dir=server_dir, server_cfg=server_cfg)
-    if server_dir or server_cfg:
+        return _interactive_config(
+            existing,
+            server_dir=server_dir,
+            server_cfg=server_cfg,
+            server_cfg_dir=server_cfg_dir,
+            server_cfg_file=server_cfg_file,
+        )
+    config = merge_config(
+        existing,
+        server_dir=server_dir,
+        server_cfg=server_cfg,
+        server_cfg_dir=server_cfg_dir,
+        server_cfg_file=server_cfg_file,
+    )
+    if server_dir or server_cfg or server_cfg_dir or server_cfg_file:
         errors = validate_config(config)
         if errors:
             for msg in errors:
@@ -73,7 +110,9 @@ def main(
     ctx: typer.Context,
     check: bool = typer.Option(False, "--check", help="Show selected artifact without installing."),
     server_dir: str | None = typer.Option(None, "--server-dir", help="Override and save FiveM server directory."),
-    server_cfg: str | None = typer.Option(None, "--config", help="Override and save config file passed to +exec."),
+    server_cfg: str | None = typer.Option(None, "--config", help="Override and save config path passed to +exec. Can be relative or absolute."),
+    server_cfg_dir: str | None = typer.Option(None, "--config-dir", help="Directory containing the server config. Can be relative to server dir or absolute."),
+    server_cfg_file: str | None = typer.Option(None, "--config-file", help="Server config filename, e.g. production.cfg."),
     artifact: str | None = typer.Option(None, "--artifact", help="Explicit artifact build or .tar.xz URL."),
 ):
     if ctx.invoked_subcommand is not None:
@@ -85,7 +124,7 @@ def main(
             console.print(f"  Build: {selected.build}")
             console.print(f"  URL:   {selected.url}")
             return
-        config = _load_or_create_config(server_dir, server_cfg)
+        config = _load_or_create_config(server_dir, server_cfg, server_cfg_dir, server_cfg_file)
         archive = download_artifact(selected, cache_dir())
         install_archive(archive, cache_dir(), Path(config["server_dir"]))
         success(f"Installed FiveM artifact {selected.build} into {config['server_dir']}")
@@ -98,9 +137,17 @@ def main(
 @app.command("config")
 def configure(
     server_dir: str | None = typer.Option(None, "--server-dir"),
-    server_cfg: str | None = typer.Option(None, "--config"),
+    server_cfg: str | None = typer.Option(None, "--config", help="Config path passed to +exec. Can be relative or absolute."),
+    server_cfg_dir: str | None = typer.Option(None, "--config-dir", help="Directory containing the server config."),
+    server_cfg_file: str | None = typer.Option(None, "--config-file", help="Server config filename."),
 ):
-    _interactive_config(load_config(), server_dir=server_dir, server_cfg=server_cfg)
+    _interactive_config(
+        load_config(),
+        server_dir=server_dir,
+        server_cfg=server_cfg,
+        server_cfg_dir=server_cfg_dir,
+        server_cfg_file=server_cfg_file,
+    )
 
 
 @service_app.command("install")
@@ -109,7 +156,7 @@ def service_install(dry_run: bool = typer.Option(False, "--dry-run", help="Print
     try:
         unit = install_service(config, dry_run=dry_run)
         if dry_run:
-            console.print(unit)
+            typer.echo(unit)
             return
         service_name = config["service_name"]
         success(f"Installed /etc/systemd/system/{service_name}.service")

@@ -36,6 +36,39 @@ def save_config(config: dict) -> None:
     tmp_path.replace(path)
 
 
+def _combine_cfg_parts(server_cfg_dir: str | None, server_cfg_file: str | None) -> str | None:
+    if server_cfg_dir and server_cfg_file:
+        return str(Path(server_cfg_dir) / server_cfg_file)
+    if server_cfg_file:
+        return server_cfg_file
+    return None
+
+
+def resolve_server_cfg(config: dict) -> Path:
+    server_dir = Path(config.get("server_dir") or ".")
+    combined = _combine_cfg_parts(config.get("server_cfg_dir"), config.get("server_cfg_file"))
+    cfg_value = combined or config.get("server_cfg") or "server.cfg"
+    cfg_path = Path(cfg_value)
+    if cfg_path.is_absolute():
+        return cfg_path
+    return server_dir / cfg_path
+
+
+def server_cfg_exec_arg(config: dict) -> str:
+    """Return the value passed to `+exec`.
+
+    Relative config paths remain relative to the FiveM server directory.
+    Absolute config paths are passed through unchanged, allowing configs to live
+    outside the artifact/server directory.
+    """
+    combined = _combine_cfg_parts(config.get("server_cfg_dir"), config.get("server_cfg_file"))
+    cfg_value = combined or config.get("server_cfg") or "server.cfg"
+    cfg_path = Path(cfg_value)
+    if cfg_path.is_absolute():
+        return str(cfg_path)
+    return cfg_value
+
+
 def validate_config(config: dict) -> list[str]:
     errors: list[str] = []
     server_dir = config.get("server_dir")
@@ -44,7 +77,7 @@ def validate_config(config: dict) -> list[str]:
     elif not Path(server_dir).exists():
         errors.append(f"server_dir does not exist: {server_dir}")
 
-    if not config.get("server_cfg"):
+    if not server_cfg_exec_arg(config):
         errors.append("server_cfg is required")
     if not config.get("service_name"):
         errors.append("service_name is required")
@@ -61,4 +94,8 @@ def merge_config(existing: dict | None, **updates) -> dict:
     for key, value in updates.items():
         if value is not None:
             config[key] = str(value)
+
+    combined = _combine_cfg_parts(config.get("server_cfg_dir"), config.get("server_cfg_file"))
+    if combined:
+        config["server_cfg"] = combined
     return config

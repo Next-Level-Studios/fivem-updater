@@ -7,6 +7,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from .config import server_cfg_exec_arg
+
 SERVICE_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
@@ -19,7 +21,7 @@ def render_systemd_unit(config: dict) -> str:
     service_name = config["service_name"]
     validate_service_name(service_name)
     server_dir = str(Path(config["server_dir"]).resolve())
-    server_cfg = str(config.get("server_cfg") or "server.cfg")
+    server_cfg = server_cfg_exec_arg(config)
     run_user = str(config.get("run_user") or "fivem")
     fx_cmd = f"exec ./run.sh +exec {shlex.quote(server_cfg)}"
     tmux_cmd = f"/usr/bin/tmux new-session -d -s {shlex.quote(service_name)} /bin/sh -lc {shlex.quote(fx_cmd)}"
