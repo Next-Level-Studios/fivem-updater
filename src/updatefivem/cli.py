@@ -1,0 +1,181 @@
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import typer
+from rich.prompt import Confirm, Prompt
+
+from .artifacts import ARTIFACT_PAGE_URL, download_artifact, fetch_artifact_page, parse_artifacts, resolve_artifact
+from .config import default_run_user, load_config, merge_config, save_config, validate_config
+from .installer import install_archive
+from .paths import cache_dir
+from .service import install_service, systemctl_args, tmux_session_exists, validate_service_name
+from .ui import console, error, info, success, warn
+
+app = typer.Typer(help="Update FiveM artifacts and manage the FiveM service.", no_args_is_help=False)
+service_app = typer.Typer(help="Install or inspect the tmux-backed systemd service.")
+app.add_typer(service_app, name="service")
+
+
+def _interactive_config(existing: dict | None = None, *, server_dir: str | None = None, server_cfg: str | None = None) -> dict:
+    config = merge_config(existing, server_dir=server_dir, server_cfg=server_cfg)
+    if not config.get("server_dir"):
+        config["server_dir"] = Prompt.ask("FiveM server directory")
+    if not config.get("server_cfg"):
+        config["server_cfg"] = Prompt.ask("Server config file", default="server.cfg")
+    config["service_name"] = Prompt.ask("Service name", default=config.get("service_name", "fivem"))
+    config["run_user"] = Prompt.ask("Linux user to run FiveM as", default=config.get("run_user") or default_run_user())
+    config["console_mode"] = "tmux"
+
+    cfg_path = Path(config["server_dir"]) / config["server_cfg"]
+    if not cfg_path.exists():
+        warn(f"Config file not found yet: {cfg_path}")
+        if not Confirm.ask("Save anyway?", default=True):
+            raise typer.Exit(1)
+
+    errors = validate_config(config)
+    if errors:
+        for msg in errors:
+            error(msg)
+        raise typer.Exit(1)
+    save_config(config)
+    success("Config saved")
+    return config
+
+
+def _load_or_create_config(server_dir: str | None = None, server_cfg: str | None = None) -> dict:
+    existing = load_config()
+    if existing is None:
+        info("No config found. First-run setup time.")
+        return _interactive_config(existing, server_dir=server_dir, server_cfg=server_cfg)
+    config = merge_config(existing, server_dir=server_dir, server_cfg=server_cfg)
+    if server_dir or server_cfg:
+        errors = validate_config(config)
+        if errors:
+            for msg in errors:
+                error(msg)
+            raise typer.Exit(1)
+        save_config(config)
+    return config
+
+
+def _selected_artifact(artifact_value: str | None):
+    html = fetch_artifact_page(ARTIFACT_PAGE_URL)
+    artifacts = parse_artifacts(html, ARTIFACT_PAGE_URL)
+    return resolve_artifact(artifact_value, artifacts)
+
+
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    check: bool = typer.Option(False, "--check", help="Show selected artifact without installing."),
+    server_dir: str | None = typer.Option(None, "--server-dir", help="Override and save FiveM server directory."),
+    server_cfg: str | None = typer.Option(None, "--config", help="Override and save config file passed to +exec."),
+    artifact: str | None = typer.Option(None, "--artifact", help="Explicit artifact build or .tar.xz URL."),
+):
+    if ctx.invoked_subcommand is not None:
+        return
+    try:
+        selected = _selected_artifact(artifact)
+        if check:
+            console.print("[bold]Selected FiveM artifact:[/]")
+            console.print(f"  Build: {selected.build}")
+            console.print(f"  URL:   {selected.url}")
+            return
+        config = _load_or_create_config(server_dir, server_cfg)
+        archive = download_artifact(selected, cache_dir())
+        install_archive(archive, cache_dir(), Path(config["server_dir"]))
+        success(f"Installed FiveM artifact {selected.build} into {config['server_dir']}")
+        console.print(f"Console: updatefivem console  [dim](detach: Ctrl+B, then D)[/]")
+    except Exception as exc:
+        error(str(exc))
+        raise typer.Exit(1) from exc
+
+
+@app.command("config")
+def configure(
+    server_dir: str | None = typer.Option(None, "--server-dir"),
+    server_cfg: str | None = typer.Option(None, "--config"),
+):
+    _interactive_config(load_config(), server_dir=server_dir, server_cfg=server_cfg)
+
+
+@service_app.command("install")
+def service_install(dry_run: bool = typer.Option(False, "--dry-run", help="Print unit without writing.")):
+    config = _load_or_create_config()
+    try:
+        unit = install_service(config, dry_run=dry_run)
+        if dry_run:
+            console.print(unit)
+            return
+        service_name = config["service_name"]
+        success(f"Installed /etc/systemd/system/{service_name}.service")
+        console.print(f"Start server: sudo systemctl start {service_name}")
+        console.print(f"Enable on boot: sudo systemctl enable {service_name}")
+        console.print("Open console: updatefivem console")
+        console.print("Detach without stopping server: press Ctrl+B, then D")
+    except Exception as exc:
+        error(str(exc))
+        raise typer.Exit(1) from exc
+
+
+def _run_systemctl(action: str):
+    config = _load_or_create_config()
+    service_name = config["service_name"]
+    try:
+        args = systemctl_args(action, service_name)
+        subprocess.run(args, check=False)
+    except Exception as exc:
+        error(str(exc))
+        raise typer.Exit(1) from exc
+
+
+@app.command()
+def start():
+    _run_systemctl("start")
+
+
+@app.command()
+def stop():
+    _run_systemctl("stop")
+
+
+@app.command()
+def restart():
+    _run_systemctl("restart")
+
+
+@app.command()
+def status():
+    _run_systemctl("status")
+
+
+@app.command()
+def logs():
+    config = _load_or_create_config()
+    subprocess.run(["journalctl", "-u", config["service_name"], "-f"], check=False)
+
+
+@app.command("console")
+def console_command():
+    """Attach to the live tmux console."""
+    config = _load_or_create_config()
+    service_name = config["service_name"]
+    try:
+        validate_service_name(service_name)
+        if not tmux_session_exists(service_name):
+            error(f"No tmux session named '{service_name}' was found.")
+            console.print(f"Start the server first: sudo systemctl start {service_name}")
+            raise typer.Exit(1)
+        console.print(f"Attaching to FiveM console: [bold]{service_name}[/]")
+        console.print("Detach without stopping the server: press [bold]Ctrl+B[/], then [bold]D[/]")
+        os.execvp("tmux", ["tmux", "attach-session", "-t", service_name])
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        error(str(exc))
+        raise typer.Exit(1) from exc
+
