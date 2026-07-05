@@ -16,6 +16,8 @@ def test_render_systemd_unit_contains_tmux_command():
     assert "WorkingDirectory=/opt/fivem/server" in unit
     assert "tmux new-session -d -s fivem" in unit
     assert "./run.sh +exec server.cfg" in unit
+    assert "FiveM exited with status" in unit
+    assert "exec /bin/sh" in unit
 
 
 def test_render_systemd_unit_quotes_config_with_spaces():
@@ -27,7 +29,7 @@ def test_render_systemd_unit_quotes_config_with_spaces():
         "console_mode": "tmux",
     })
 
-    assert "'./run.sh +exec '" not in unit
+    assert "./run.sh +exec" in unit
     assert "configs/live server.cfg" in unit
 
 

@@ -52,16 +52,18 @@ def test_prepare_service_for_update_can_be_skipped(monkeypatch):
 def test_offer_start_after_update_asks_even_if_service_was_not_stopped(monkeypatch):
     calls = []
     monkeypatch.setattr(cli, "_service_unit_exists", lambda service_name: True)
+    monkeypatch.setattr(cli, "_wait_for_tmux_session", lambda service_name: True)
     monkeypatch.setattr(cli.Confirm, "ask", lambda *args, **kwargs: True)
     monkeypatch.setattr(cli, "_run_service_action", lambda action, service_name: calls.append((action, service_name)))
 
-    cli._offer_start_after_update(
+    started = cli._offer_start_after_update(
         {"service_name": "fivem-dev"},
         assume_yes=False,
         service_control=True,
         run_after_update=False,
     )
 
+    assert started is True
     assert calls == [("start", "fivem-dev")]
 
 
@@ -69,16 +71,18 @@ def test_offer_start_after_update_run_option_starts_without_prompt(monkeypatch):
     calls = []
     prompts = []
     monkeypatch.setattr(cli, "_service_unit_exists", lambda service_name: True)
+    monkeypatch.setattr(cli, "_wait_for_tmux_session", lambda service_name: True)
     monkeypatch.setattr(cli.Confirm, "ask", lambda *args, **kwargs: prompts.append(args) or False)
     monkeypatch.setattr(cli, "_run_service_action", lambda action, service_name: calls.append((action, service_name)))
 
-    cli._offer_start_after_update(
+    started = cli._offer_start_after_update(
         {"service_name": "fivem-dev"},
         assume_yes=False,
         service_control=True,
         run_after_update=True,
     )
 
+    assert started is True
     assert prompts == []
     assert calls == [("start", "fivem-dev")]
 
@@ -91,13 +95,14 @@ def test_offer_start_after_update_prints_command_when_declined(monkeypatch):
     monkeypatch.setattr(cli, "_run_service_action", lambda action, service_name: calls.append((action, service_name)))
     monkeypatch.setattr(cli.console, "print", lambda message: messages.append(str(message)))
 
-    cli._offer_start_after_update(
+    started = cli._offer_start_after_update(
         {"service_name": "fivem-dev"},
         assume_yes=False,
         service_control=True,
         run_after_update=False,
     )
 
+    assert started is False
     assert calls == []
     assert any("updatefivem start" in message for message in messages)
     assert any("systemctl start fivem-dev" in message for message in messages)
@@ -112,13 +117,14 @@ def test_offer_start_after_update_skips_prompt_when_service_unit_missing(monkeyp
     monkeypatch.setattr(cli, "_run_service_action", lambda action, service_name: calls.append((action, service_name)))
     monkeypatch.setattr(cli.console, "print", lambda message: messages.append(str(message)))
 
-    cli._offer_start_after_update(
+    started = cli._offer_start_after_update(
         {"service_name": "fivem-dev"},
         assume_yes=False,
         service_control=True,
         run_after_update=True,
     )
 
+    assert started is False
     assert calls == []
     assert prompts == []
     assert any("No systemd service named 'fivem-dev' is installed" in message for message in messages)
@@ -129,14 +135,37 @@ def test_offer_start_after_update_does_nothing_when_service_control_disabled(mon
     calls = []
     monkeypatch.setattr(cli, "_run_service_action", lambda action, service_name: calls.append((action, service_name)))
 
-    cli._offer_start_after_update(
+    started = cli._offer_start_after_update(
         {"service_name": "fivem-dev"},
         assume_yes=True,
         service_control=False,
         run_after_update=True,
     )
 
+    assert started is False
     assert calls == []
+
+
+def test_offer_start_after_update_reports_when_service_exits_without_tmux(monkeypatch):
+    calls = []
+    messages = []
+    monkeypatch.setattr(cli, "_service_unit_exists", lambda service_name: True)
+    monkeypatch.setattr(cli, "_wait_for_tmux_session", lambda service_name: False)
+    monkeypatch.setattr(cli.Confirm, "ask", lambda *args, **kwargs: True)
+    monkeypatch.setattr(cli, "_run_service_action", lambda action, service_name: calls.append((action, service_name)))
+    monkeypatch.setattr(cli.console, "print", lambda message: messages.append(str(message)))
+
+    started = cli._offer_start_after_update(
+        {"service_name": "fivem-dev"},
+        assume_yes=False,
+        service_control=True,
+        run_after_update=False,
+    )
+
+    assert started is False
+    assert calls == [("start", "fivem-dev")]
+    assert any("tmux session" in message for message in messages)
+    assert any("updatefivem logs" in message for message in messages)
 
 
 def test_maybe_check_for_cli_update_prints_when_new_release_exists(monkeypatch):

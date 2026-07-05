@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import time
 from pathlib import Path
 
 import typer
@@ -144,6 +145,26 @@ def _service_unit_exists(service_name: str) -> bool:
     return service_unit_exists(service_name)
 
 
+def _tmux_session_exists(service_name: str) -> bool:
+    return tmux_session_exists(service_name)
+
+
+def _wait_for_tmux_session(service_name: str, *, attempts: int = 10, delay: float = 0.25) -> bool:
+    for _ in range(attempts):
+        if _tmux_session_exists(service_name):
+            return True
+        time.sleep(delay)
+    return False
+
+
+def _print_start_diagnostics(service_name: str) -> None:
+    console.print(f"The systemd start command returned, but no tmux session named '{service_name}' was found.")
+    console.print("The server probably exited immediately. Check the service and logs:")
+    console.print("  updatefivem status")
+    console.print("  updatefivem logs")
+    console.print(f"  journalctl -u {service_name} -n 80 --no-pager")
+
+
 def _prepare_service_for_update(config: dict, *, assume_yes: bool, service_control: bool) -> bool:
     if not service_control:
         return False
@@ -164,15 +185,15 @@ def _prepare_service_for_update(config: dict, *, assume_yes: bool, service_contr
     return True
 
 
-def _offer_start_after_update(config: dict, *, assume_yes: bool, service_control: bool, run_after_update: bool) -> None:
+def _offer_start_after_update(config: dict, *, assume_yes: bool, service_control: bool, run_after_update: bool) -> bool:
     if not service_control:
-        return
+        return False
     service_name = config.get("service_name", "fivem")
     if not _service_unit_exists(service_name):
         console.print(f"No systemd service named '{service_name}' is installed yet.")
         console.print("Install the tmux-backed service with: sudo updatefivem service install")
         console.print(f"Then start it with: updatefivem start")
-        return
+        return False
     should_start = run_after_update or assume_yes or Confirm.ask(
         f"Update complete. Would you like to start the FiveM service '{service_name}' now?",
         default=True,
@@ -180,9 +201,14 @@ def _offer_start_after_update(config: dict, *, assume_yes: bool, service_control
     if should_start:
         info(f"Starting FiveM service: {service_name}")
         _run_service_action("start", service_name)
+        if not _wait_for_tmux_session(service_name):
+            _print_start_diagnostics(service_name)
+            return False
+        return True
     else:
         console.print("Start it later with: updatefivem start")
         console.print(f"Or directly with: sudo systemctl start {service_name}")
+        return False
 
 
 @app.callback(invoke_without_command=True)
@@ -214,13 +240,14 @@ def main(
         archive = download_artifact(selected, cache_dir())
         install_archive(archive, cache_dir(), Path(config["server_dir"]))
         success(f"Installed FiveM artifact {selected.build} into {config['server_dir']}")
-        _offer_start_after_update(
+        started = _offer_start_after_update(
             config,
             assume_yes=yes,
             service_control=service_control,
             run_after_update=run_after_update,
         )
-        console.print(f"Console: updatefivem console  [dim](detach: Ctrl+B, then D)[/]")
+        if started:
+            console.print(f"Console: updatefivem console  [dim](detach: Ctrl+B, then D)[/]")
     except Exception as exc:
         error(str(exc))
         raise typer.Exit(1) from exc
