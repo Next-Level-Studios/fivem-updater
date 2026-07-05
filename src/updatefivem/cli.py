@@ -13,6 +13,7 @@ from .installer import install_archive
 from .paths import cache_dir
 from .service import install_service, systemctl_args, tmux_session_exists, validate_service_name
 from .ui import console, error, info, success, warn
+from .updater import run_self_update
 
 app = typer.Typer(help="Update FiveM artifacts and manage the FiveM service.", no_args_is_help=False)
 service_app = typer.Typer(help="Install or inspect the tmux-backed systemd service.")
@@ -152,6 +153,33 @@ def configure(
         server_cfg_dir=server_cfg_dir,
         server_cfg_file=server_cfg_file,
     )
+
+
+def _self_update(dry_run: bool) -> None:
+    try:
+        tag, name, url, cmd = run_self_update(dry_run=dry_run)
+        info(f"Latest updatefivem release: {tag}")
+        info(f"Wheel: {name}")
+        if dry_run:
+            console.print("Command that would run:")
+            console.print(" ".join(cmd))
+            return
+        success(f"Updated updatefivem from {url}")
+    except Exception as exc:
+        error(str(exc))
+        raise typer.Exit(1) from exc
+
+
+@app.command("self-update")
+def self_update(dry_run: bool = typer.Option(False, "--dry-run", help="Show the pip upgrade command without running it.")):
+    """Update this updatefivem CLI from the latest GitHub release."""
+    _self_update(dry_run=dry_run)
+
+
+@app.command("update-cli")
+def update_cli(dry_run: bool = typer.Option(False, "--dry-run", help="Show the pip upgrade command without running it.")):
+    """Alias for self-update."""
+    _self_update(dry_run=dry_run)
 
 
 @service_app.command("install")

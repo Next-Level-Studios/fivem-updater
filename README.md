@@ -46,6 +46,9 @@ updatefivem config                  # Interactive config setup/edit
 updatefivem service install         # Install/update systemd unit
 updatefivem service install --dry-run
 
+updatefivem self-update             # Upgrade this CLI from the latest GitHub release
+updatefivem update-cli              # Alias for self-update
+
 updatefivem start
 updatefivem stop
 updatefivem restart
@@ -81,10 +84,10 @@ Download the latest wheel from the releases page:
 
 https://github.com/Next-Level-Studios/fivem-updater/releases
 
-Example using `v0.1.2`:
+Example using `v0.1.3`:
 
 ```bash
-wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.2/updatefivem-0.1.2-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.3/updatefivem-0.1.3-py3-none-any.whl
 ```
 
 Recommended system venv install:
@@ -92,7 +95,7 @@ Recommended system venv install:
 ```bash
 sudo mkdir -p /opt/updatefivem
 sudo python3 -m venv /opt/updatefivem/venv
-sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.2-py3-none-any.whl
+sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.3-py3-none-any.whl
 sudo ln -sf /opt/updatefivem/venv/bin/updatefivem /usr/local/bin/updatefivem
 ```
 
@@ -226,6 +229,28 @@ It does not intentionally touch:
 ```
 
 Still, this is a server updater. Backups are not cowardice; they are how adults avoid Discord panic.
+
+---
+
+## Updating updatefivem itself
+
+Once `updatefivem` is installed, you can upgrade the CLI from the latest GitHub release with:
+
+```bash
+sudo updatefivem self-update
+```
+
+or:
+
+```bash
+sudo updatefivem update-cli
+```
+
+Preview the pip command without running it:
+
+```bash
+updatefivem self-update --dry-run
+```
 
 ---
 
