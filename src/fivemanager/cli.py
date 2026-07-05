@@ -179,8 +179,17 @@ def remove_command(server_id: int):
 
 
 @app.command("self-update")
-def self_update(dry_run: bool = typer.Option(False, "--dry-run")):
-    tag, name, url, cmd = run_self_update(dry_run=dry_run)
+def self_update(
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    prerelease: bool = typer.Option(False, "--prerelease", help="Include prerelease alpha/beta builds."),
+):
+    try:
+        tag, name, url, cmd = run_self_update(dry_run=dry_run, include_prereleases=prerelease)
+    except RuntimeError as exc:
+        warn(str(exc))
+        if not prerelease:
+            info("Use --prerelease to opt into alpha/beta builds, or install a specific release wheel manually.")
+        raise typer.Exit(0)
     info(f"Latest FiveManager release: {tag}")
     info(f"Wheel: {name}")
     if dry_run:

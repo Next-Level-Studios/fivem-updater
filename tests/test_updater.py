@@ -1,6 +1,6 @@
 import pytest
 
-from fivemanager.updater import GITHUB_LATEST_RELEASE_API, check_for_newer_release, find_wheel_asset, normalise_version
+from fivemanager.updater import GITHUB_LATEST_RELEASE_API, check_for_newer_release, find_wheel_asset, latest_newer_release, normalise_version, run_self_update
 
 
 def test_find_wheel_asset_prefers_fivemanager_wheel():
@@ -42,3 +42,24 @@ def test_release_url_fallback_uses_renamed_repo_casing():
     update = check_for_newer_release("0.9.0", release)
     assert update is not None
     assert update.release_url == "https://github.com/Next-Level-Studios/FiveManager/releases/latest"
+
+
+def test_latest_newer_release_ignores_older_stable(monkeypatch):
+    monkeypatch.setattr("fivemanager.updater.fetch_latest_release", lambda: {"tag_name": "v0.1.14", "assets": [{"name": "updatefivem-0.1.14-py3-none-any.whl", "browser_download_url": "https://example.test/old.whl"}]})
+    assert latest_newer_release("0.9.3") is None
+
+
+def test_latest_newer_release_can_include_prereleases(monkeypatch):
+    monkeypatch.setattr("fivemanager.updater.fetch_releases", lambda: [
+        {"tag_name": "v0.9.4-alpha", "draft": False, "assets": [{"name": "fivemanager-0.9.4-py3-none-any.whl", "browser_download_url": "https://example.test/new.whl"}]},
+        {"tag_name": "v0.1.14", "draft": False, "assets": [{"name": "updatefivem-0.1.14-py3-none-any.whl", "browser_download_url": "https://example.test/old.whl"}]},
+    ])
+    update = latest_newer_release("0.9.3", include_prereleases=True)
+    assert update is not None
+    assert update.latest_version == "v0.9.4-alpha"
+
+
+def test_run_self_update_refuses_when_no_newer_release(monkeypatch):
+    monkeypatch.setattr("fivemanager.updater.latest_newer_release", lambda *args, **kwargs: None)
+    with pytest.raises(RuntimeError, match="No newer"):
+        run_self_update(dry_run=True)

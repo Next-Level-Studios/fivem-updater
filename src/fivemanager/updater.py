@@ -9,7 +9,10 @@ from urllib.parse import urlparse
 
 import requests
 
+from . import __version__
+
 GITHUB_LATEST_RELEASE_API = "https://api.github.com/repos/Next-Level-Studios/FiveManager/releases/latest"
+GITHUB_RELEASES_API = "https://api.github.com/repos/Next-Level-Studios/FiveManager/releases"
 
 
 @dataclass(frozen=True)
@@ -22,6 +25,12 @@ class UpdateInfo:
 
 
 def fetch_latest_release(api_url: str = GITHUB_LATEST_RELEASE_API) -> dict[str, Any]:
+    response = requests.get(api_url, timeout=30)
+    response.raise_for_status()
+    return response.json()
+
+
+def fetch_releases(api_url: str = GITHUB_RELEASES_API) -> list[dict[str, Any]]:
     response = requests.get(api_url, timeout=30)
     response.raise_for_status()
     return response.json()
@@ -61,13 +70,25 @@ def check_for_newer_release(current_version: str, release: dict[str, Any]) -> Up
     return UpdateInfo(current_version, latest, release.get("html_url") or "https://github.com/Next-Level-Studios/FiveManager/releases/latest", asset.get("name", "fivemanager.whl"), asset["browser_download_url"])
 
 
-def run_self_update(dry_run: bool = False) -> tuple[str, str, str, list[str]]:
-    release = fetch_latest_release()
-    asset = find_wheel_asset(release)
-    tag = release.get("tag_name", "latest")
-    name = asset.get("name", "fivemanager.whl")
-    url = asset["browser_download_url"]
-    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", url]
+def latest_newer_release(current_version: str, include_prereleases: bool = False) -> UpdateInfo | None:
+    if not include_prereleases:
+        return check_for_newer_release(current_version, fetch_latest_release())
+    best: UpdateInfo | None = None
+    for release in fetch_releases():
+        if release.get("draft"):
+            continue
+        update = check_for_newer_release(current_version, release)
+        if update and (best is None or normalise_version(update.latest_version) > normalise_version(best.latest_version)):
+            best = update
+    return best
+
+
+def run_self_update(dry_run: bool = False, include_prereleases: bool = False) -> tuple[str, str, str, list[str]]:
+    update = latest_newer_release(__version__, include_prereleases=include_prereleases)
+    if update is None:
+        channel = "release/prerelease" if include_prereleases else "stable release"
+        raise RuntimeError(f"No newer {channel} found for FiveManager {__version__}.")
+    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", update.wheel_url]
     if not dry_run:
         subprocess.run(cmd, check=True)
-    return tag, name, url, cmd
+    return update.latest_version, update.wheel_name, update.wheel_url, cmd
