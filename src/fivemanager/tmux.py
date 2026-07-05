@@ -32,7 +32,7 @@ def start_server(runtime_dir: Path, server: dict) -> str:
         f"export TXHOST_FXS_PORT={str(server['fxserver_port'])!r}; "
         f"export TXHOST_INTERFACE={server.get('interface', '0.0.0.0')!r}; "
     )
-    cmd = f"{env} cd {str(cfg_path.parent)!r}; {str(run_sh)!r} +exec {cfg_path.name!r}; code=$?; printf '\\nFiveM exited with status %s. Press Ctrl+B then D to detach.\\n' \"$code\"; exec /bin/sh"
+    cmd = f"{env} cd {str(runtime_dir)!r}; {str(run_sh)!r}; code=$?; printf '\\nFiveM/txAdmin exited with status %s. Press Ctrl+B then D to detach.\\n' \"$code\"; exec /bin/sh"
     subprocess.run(["tmux", "new-session", "-d", "-s", name, "/bin/sh", "-lc", cmd], check=True)
     return name
 

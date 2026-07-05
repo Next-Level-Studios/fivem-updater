@@ -180,5 +180,6 @@ def test_start_server_builds_expected_tmux_command(monkeypatch, tmp_path):
     assert str(runtime / "txData" / "main") in joined
     assert "TXHOST_TXA_PORT" in joined
     assert str(runtime / "run.sh") in joined
-    assert "main" in joined
-    assert "server.cfg" in joined
+    assert "+exec" not in joined
+    assert str(server_data) not in joined
+    assert "server.cfg" not in joined
