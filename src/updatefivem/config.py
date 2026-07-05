@@ -54,19 +54,18 @@ def resolve_server_cfg(config: dict) -> Path:
     return server_dir / cfg_path
 
 
+def server_working_dir(config: dict) -> Path:
+    return resolve_server_cfg(config).parent
+
+
 def server_cfg_exec_arg(config: dict) -> str:
     """Return the value passed to `+exec`.
 
-    Relative config paths remain relative to the FiveM server directory.
-    Absolute config paths are passed through unchanged, allowing configs to live
-    outside the artifact/server directory.
+    The service runs from the directory containing the chosen cfg, so nested
+    `exec other.cfg` lines inside server.cfg resolve beside that cfg rather than
+    beside the artifact runtime directory.
     """
-    combined = _combine_cfg_parts(config.get("server_cfg_dir"), config.get("server_cfg_file"))
-    cfg_value = combined or config.get("server_cfg") or "server.cfg"
-    cfg_path = Path(cfg_value)
-    if cfg_path.is_absolute():
-        return str(cfg_path)
-    return cfg_value
+    return resolve_server_cfg(config).name
 
 
 def validate_config(config: dict) -> list[str]:

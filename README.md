@@ -90,10 +90,10 @@ Download the latest wheel from the releases page:
 
 https://github.com/Next-Level-Studios/fivem-updater/releases
 
-Example using `v0.1.13`:
+Example using `v0.1.14`:
 
 ```bash
-wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.13/updatefivem-0.1.13-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.14/updatefivem-0.1.14-py3-none-any.whl
 ```
 
 Recommended system venv install:
@@ -101,7 +101,7 @@ Recommended system venv install:
 ```bash
 sudo mkdir -p /opt/updatefivem
 sudo python3 -m venv /opt/updatefivem/venv
-sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.13-py3-none-any.whl
+sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.14-py3-none-any.whl
 sudo ln -sf /opt/updatefivem/venv/bin/updatefivem /usr/local/bin/updatefivem
 ```
 
@@ -131,6 +131,8 @@ It will ask for:
 - Linux user to run FiveM as
 
 Important: the server config directory does **not** have to be the same as the FiveM artifact/server directory. Use an absolute path if your `server.cfg` lives elsewhere.
+
+The generated service runs from the directory containing your selected cfg file, not from the artifact runtime directory. That means nested lines such as `exec resources.cfg` resolve beside `server.cfg`, and FiveM/txAdmin data such as `txData/` naturally belongs to that server config/profile directory. The artifact directory stays just the runtime: `run.sh` and `alpine/`.
 
 The config is saved to your user config path by default:
 
@@ -171,10 +173,10 @@ updatefivem config \
   --config-file production.cfg
 ```
 
-The service will run:
+The service will run from `/opt/fivem/server/configs/live` and execute:
 
 ```bash
-./run.sh +exec configs/live/production.cfg
+/opt/fivem/server/run.sh +exec production.cfg
 ```
 
 ### Config outside the FiveM server directory
@@ -194,10 +196,10 @@ updatefivem config \
   --config-file production.cfg
 ```
 
-The service will run:
+The service will run from `/etc/fivem/configs` and execute:
 
 ```bash
-./run.sh +exec /etc/fivem/configs/production.cfg
+/opt/fivem/server/run.sh +exec production.cfg
 ```
 
 ### One-shot config path

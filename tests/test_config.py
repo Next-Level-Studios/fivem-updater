@@ -7,6 +7,8 @@ from updatefivem.config import (
     merge_config,
     resolve_server_cfg,
     save_config,
+    server_cfg_exec_arg,
+    server_working_dir,
     validate_config,
 )
 from updatefivem.paths import cache_dir, config_path
@@ -119,6 +121,22 @@ def test_resolve_server_cfg_combines_config_dir_and_filename(tmp_path):
     })
 
     assert resolved == server_dir / "configs/live/production.cfg"
+
+
+def test_server_working_dir_and_exec_arg_use_config_directory(tmp_path):
+    server_dir = tmp_path / "server"
+    server_dir.mkdir()
+    config = {
+        "server_dir": str(server_dir),
+        "server_cfg_dir": "configs/live",
+        "server_cfg_file": "production.cfg",
+        "service_name": "fivem",
+        "run_user": "neo",
+        "console_mode": "tmux",
+    }
+
+    assert server_working_dir(config) == server_dir / "configs/live"
+    assert server_cfg_exec_arg(config) == "production.cfg"
 
 
 def test_merge_config_saves_config_dir_and_file_as_server_cfg(tmp_path):

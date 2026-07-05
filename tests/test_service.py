@@ -15,7 +15,7 @@ def test_render_systemd_unit_contains_tmux_command():
     assert "User=fivem" in unit
     assert "WorkingDirectory=/opt/fivem/server" in unit
     assert "tmux new-session -d -s fivem" in unit
-    assert "./run.sh +exec server.cfg" in unit
+    assert "/opt/fivem/server/run.sh +exec server.cfg" in unit
     assert "FiveM exited with status" in unit
     assert "exec /bin/sh" in unit
 
@@ -29,8 +29,8 @@ def test_render_systemd_unit_quotes_config_with_spaces():
         "console_mode": "tmux",
     })
 
-    assert "./run.sh +exec" in unit
-    assert "configs/live server.cfg" in unit
+    assert "/opt/fivem/server/run.sh +exec" in unit
+    assert "live server.cfg" in unit
 
 
 def test_render_systemd_unit_uses_absolute_config_path_outside_server_dir():
@@ -42,7 +42,8 @@ def test_render_systemd_unit_uses_absolute_config_path_outside_server_dir():
         "console_mode": "tmux",
     })
 
-    assert "./run.sh +exec /etc/fivem/configs/production.cfg" in unit
+    assert "WorkingDirectory=/etc/fivem/configs" in unit
+    assert "/opt/fivem/server/run.sh +exec production.cfg" in unit
 
 
 def test_render_systemd_unit_combines_config_dir_and_filename():
@@ -55,7 +56,22 @@ def test_render_systemd_unit_combines_config_dir_and_filename():
         "console_mode": "tmux",
     })
 
-    assert "./run.sh +exec /etc/fivem/configs/city.cfg" in unit
+    assert "WorkingDirectory=/etc/fivem/configs" in unit
+    assert "/opt/fivem/server/run.sh +exec city.cfg" in unit
+
+
+def test_render_systemd_unit_runs_from_relative_config_directory():
+    unit = render_systemd_unit({
+        "server_dir": "/opt/fivem/server",
+        "server_cfg_dir": "server-data/dev",
+        "server_cfg_file": "server.dev.cfg",
+        "service_name": "fivem-dev",
+        "run_user": "neo",
+        "console_mode": "tmux",
+    })
+
+    assert "WorkingDirectory=/opt/fivem/server/server-data/dev" in unit
+    assert "/opt/fivem/server/run.sh +exec server.dev.cfg" in unit
 
 
 def test_invalid_service_name_rejected():

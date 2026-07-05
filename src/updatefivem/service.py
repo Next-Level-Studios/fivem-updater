@@ -7,7 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from .config import server_cfg_exec_arg
+from .config import server_cfg_exec_arg, server_working_dir
 
 SERVICE_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
@@ -20,10 +20,12 @@ def validate_service_name(name: str) -> None:
 def render_systemd_unit(config: dict) -> str:
     service_name = config["service_name"]
     validate_service_name(service_name)
-    server_dir = str(Path(config["server_dir"]).resolve())
+    server_dir = Path(config["server_dir"]).resolve()
+    run_sh = server_dir / "run.sh"
+    work_dir = server_working_dir(config).resolve()
     server_cfg = server_cfg_exec_arg(config)
     run_user = str(config.get("run_user") or "fivem")
-    run_cmd = f"./run.sh +exec {shlex.quote(server_cfg)}"
+    run_cmd = f"{shlex.quote(str(run_sh))} +exec {shlex.quote(server_cfg)}"
     fx_cmd = (
         f"{run_cmd}; "
         "code=$?; "
@@ -39,7 +41,7 @@ Wants=network-online.target
 [Service]
 Type=forking
 User={run_user}
-WorkingDirectory={server_dir}
+WorkingDirectory={work_dir}
 ExecStart={tmux_cmd}
 ExecStop=/usr/bin/tmux send-keys -t {service_name} C-c
 ExecStop=/bin/sleep 5
