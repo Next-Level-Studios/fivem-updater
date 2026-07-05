@@ -110,6 +110,37 @@ def _selected_artifact(artifact_value: str | None):
     return resolve_artifact(artifact_value, artifacts)
 
 
+def _run_service_action(action: str, service_name: str) -> None:
+    args = systemctl_args(action, service_name)
+    subprocess.run(args, check=True)
+
+
+def _prepare_service_for_update(config: dict, *, assume_yes: bool, service_control: bool) -> bool:
+    if not service_control:
+        return False
+    service_name = config.get("service_name", "fivem")
+    if not assume_yes:
+        ready = Confirm.ask(
+            f"Ready to stop the FiveM service '{service_name}' before updating?",
+            default=False,
+        )
+        if not ready:
+            warn("Update cancelled before stopping the server.")
+            raise typer.Exit(1)
+    info(f"Stopping FiveM service: {service_name}")
+    _run_service_action("stop", service_name)
+    return True
+
+
+def _offer_start_after_update(config: dict, *, assume_yes: bool, service_was_stopped: bool) -> None:
+    if not service_was_stopped:
+        return
+    service_name = config.get("service_name", "fivem")
+    if assume_yes or Confirm.ask(f"Update complete. Start the FiveM service '{service_name}' now?", default=True):
+        info(f"Starting FiveM service: {service_name}")
+        _run_service_action("start", service_name)
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -119,6 +150,8 @@ def main(
     server_cfg_dir: str | None = typer.Option(None, "--config-dir", help="Directory containing the server config. Can be relative to server dir or absolute."),
     server_cfg_file: str | None = typer.Option(None, "--config-file", help="Server config filename, e.g. production.cfg."),
     artifact: str | None = typer.Option(None, "--artifact", help="Explicit artifact build or .tar.xz URL."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Assume yes for stop/start prompts during update."),
+    service_control: bool = typer.Option(True, "--service-control/--no-service-control", help="Stop the configured service before updating and offer to start it afterwards."),
 ):
     if ctx.invoked_subcommand is not None:
         return
@@ -130,9 +163,11 @@ def main(
             console.print(f"  URL:   {selected.url}")
             return
         config = _load_or_create_config(server_dir, server_cfg, server_cfg_dir, server_cfg_file)
+        service_was_stopped = _prepare_service_for_update(config, assume_yes=yes, service_control=service_control)
         archive = download_artifact(selected, cache_dir())
         install_archive(archive, cache_dir(), Path(config["server_dir"]))
         success(f"Installed FiveM artifact {selected.build} into {config['server_dir']}")
+        _offer_start_after_update(config, assume_yes=yes, service_was_stopped=service_was_stopped)
         console.print(f"Console: updatefivem console  [dim](detach: Ctrl+B, then D)[/]")
     except Exception as exc:
         error(str(exc))

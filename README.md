@@ -41,6 +41,8 @@ updatefivem --server-dir /path      # Override/save server directory
 updatefivem --config /path.cfg      # Override/save config path passed to +exec
 updatefivem --config-dir /path      # Directory containing the server cfg
 updatefivem --config-file name.cfg  # Server cfg filename
+updatefivem --yes                   # Assume yes for stop/start prompts
+updatefivem --no-service-control    # Update files without stopping/starting service
 
 updatefivem config                  # Interactive config setup/edit
 updatefivem service install         # Install/update systemd unit
@@ -84,10 +86,10 @@ Download the latest wheel from the releases page:
 
 https://github.com/Next-Level-Studios/fivem-updater/releases
 
-Example using `v0.1.3`:
+Example using `v0.1.4`:
 
 ```bash
-wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.3/updatefivem-0.1.3-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.4/updatefivem-0.1.4-py3-none-any.whl
 ```
 
 Recommended system venv install:
@@ -95,7 +97,7 @@ Recommended system venv install:
 ```bash
 sudo mkdir -p /opt/updatefivem
 sudo python3 -m venv /opt/updatefivem/venv
-sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.3-py3-none-any.whl
+sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.4-py3-none-any.whl
 sudo ln -sf /opt/updatefivem/venv/bin/updatefivem /usr/local/bin/updatefivem
 ```
 
@@ -210,6 +212,20 @@ Install/update artifacts:
 
 ```bash
 sudo updatefivem
+```
+
+By default, before replacing `alpine/` and `run.sh`, `updatefivem` asks you to confirm that the configured FiveM service can be stopped. After the update completes, it asks whether to start the service again.
+
+For unattended use:
+
+```bash
+sudo updatefivem --yes
+```
+
+If you want the old file-only behavior and will manage the running server yourself:
+
+```bash
+sudo updatefivem --no-service-control
 ```
 
 This overwrites:
