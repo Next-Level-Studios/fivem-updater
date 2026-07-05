@@ -28,6 +28,17 @@ def test_find_wheel_asset_raises_without_wheel():
         find_wheel_asset({"assets": [{"name": "source.tar.gz"}]})
 
 
+def test_find_wheel_asset_rejects_plain_http_download_url():
+    release = {
+        "assets": [
+            {"name": "updatefivem-0.1.3-py3-none-any.whl", "browser_download_url": "http://example.test/updatefivem.whl"},
+        ],
+    }
+
+    with pytest.raises(RuntimeError, match="HTTPS"):
+        find_wheel_asset(release)
+
+
 def test_build_pip_upgrade_command_uses_current_python():
     cmd = build_pip_upgrade_command("https://example.test/updatefivem.whl", python_executable="/opt/updatefivem/venv/bin/python")
 

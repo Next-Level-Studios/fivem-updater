@@ -17,6 +17,8 @@ def _safe_member_path(root: Path, member_name: str) -> Path:
 
 def _validate_tar_member(root: Path, member: tarfile.TarInfo) -> None:
     _safe_member_path(root, member.name)
+    if not (member.isdir() or member.isreg() or member.issym() or member.islnk()):
+        raise RuntimeError(f"Refusing to extract unsupported tar member: {member.name}")
     if member.issym() or member.islnk():
         # Tar links are resolved relative to the link's containing directory.
         # Reject absolute or escaping targets before extraction so an archive
@@ -33,7 +35,7 @@ def extract_artifact(archive_path: Path, work_dir: Path) -> Path:
     with tarfile.open(archive_path, "r:xz") as tar:
         for member in tar.getmembers():
             _validate_tar_member(extract_root, member)
-        tar.extractall(extract_root, filter="fully_trusted")
+        tar.extractall(extract_root, filter="data")
     for root, dirs, _files in os.walk(extract_root):
         root_path = Path(root)
         if not root_path.is_symlink():

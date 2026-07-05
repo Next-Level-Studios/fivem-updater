@@ -5,6 +5,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
@@ -29,7 +30,10 @@ def fetch_latest_release(api_url: str = GITHUB_LATEST_RELEASE_API) -> dict[str, 
 def find_wheel_asset(release: dict[str, Any]) -> dict[str, Any]:
     for asset in release.get("assets", []):
         name = asset.get("name", "")
-        if name.startswith("updatefivem-") and name.endswith(".whl") and asset.get("browser_download_url"):
+        download_url = asset.get("browser_download_url")
+        if name.startswith("updatefivem-") and name.endswith(".whl") and download_url:
+            if urlparse(download_url).scheme != "https":
+                raise RuntimeError("updatefivem wheel download URL must use HTTPS")
             return asset
     raise RuntimeError("Latest release does not contain an updatefivem wheel asset")
 

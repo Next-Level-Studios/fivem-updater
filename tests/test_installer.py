@@ -81,3 +81,14 @@ def test_extract_rejects_symlink_escaping_extract_root(tmp_path):
 
     with pytest.raises(RuntimeError, match="unsafe"):
         extract_artifact(archive, tmp_path / "work")
+
+
+def test_extract_rejects_special_tar_members(tmp_path):
+    archive = tmp_path / "evil-special.tar.xz"
+    with tarfile.open(archive, "w:xz") as tar:
+        info = tarfile.TarInfo("alpine/fifo")
+        info.type = tarfile.FIFOTYPE
+        tar.addfile(info)
+
+    with pytest.raises(RuntimeError, match="unsupported tar member"):
+        extract_artifact(archive, tmp_path / "work")
