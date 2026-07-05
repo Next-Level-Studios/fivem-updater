@@ -23,8 +23,10 @@ Created by AI, assisted by Next Level Studio.
   - `<server-dir>/alpine/`
   - `<server-dir>/run.sh`
 - Leaves your `server.cfg`, resources, database files, and other server content alone.
-- Stores config system-wide at:
-  `/etc/updatefivem/config.json`
+- Stores config in the user's XDG config directory by default:
+  `~/.config/updatefivem/config.json`
+- Downloads artifacts to the user's XDG cache directory by default:
+  `~/.cache/updatefivem/`
 - Can install a systemd service that launches FiveM inside tmux.
 - Lets you attach to the live server console with:
   `updatefivem console`
@@ -86,10 +88,10 @@ Download the latest wheel from the releases page:
 
 https://github.com/Next-Level-Studios/fivem-updater/releases
 
-Example using `v0.1.5`:
+Example using `v0.1.6`:
 
 ```bash
-wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.5/updatefivem-0.1.5-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.6/updatefivem-0.1.6-py3-none-any.whl
 ```
 
 Recommended system venv install:
@@ -97,7 +99,7 @@ Recommended system venv install:
 ```bash
 sudo mkdir -p /opt/updatefivem
 sudo python3 -m venv /opt/updatefivem/venv
-sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.5-py3-none-any.whl
+sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.6-py3-none-any.whl
 sudo ln -sf /opt/updatefivem/venv/bin/updatefivem /usr/local/bin/updatefivem
 ```
 
@@ -112,10 +114,10 @@ updatefivem --check
 
 ## First-run configuration
 
-Run:
+Run as the user that will normally update the server:
 
 ```bash
-sudo updatefivem config
+updatefivem config
 ```
 
 It will ask for:
@@ -128,11 +130,19 @@ It will ask for:
 
 Important: the server config directory does **not** have to be the same as the FiveM artifact/server directory. Use an absolute path if your `server.cfg` lives elsewhere.
 
-The config is saved to:
+The config is saved to your user config path by default:
 
 ```text
-/etc/updatefivem/config.json
+~/.config/updatefivem/config.json
 ```
+
+The artifact download cache uses:
+
+```text
+~/.cache/updatefivem/
+```
+
+Both paths respect `XDG_CONFIG_HOME` and `XDG_CACHE_HOME`. You can override them explicitly with `UPDATEFIVEM_CONFIG_PATH` and `UPDATEFIVEM_CACHE_DIR`.
 
 ---
 
@@ -153,7 +163,7 @@ If your server looks like this:
 Use:
 
 ```bash
-sudo updatefivem config \
+updatefivem config \
   --server-dir /opt/fivem/server \
   --config-dir configs/live \
   --config-file production.cfg
@@ -176,7 +186,7 @@ If your config lives somewhere else:
 Use:
 
 ```bash
-sudo updatefivem config \
+updatefivem config \
   --server-dir /opt/fivem/server \
   --config-dir /etc/fivem/configs \
   --config-file production.cfg
@@ -193,7 +203,7 @@ The service will run:
 You can also provide the config path directly:
 
 ```bash
-sudo updatefivem config \
+updatefivem config \
   --server-dir /opt/fivem/server \
   --config /etc/fivem/configs/production.cfg
 ```
@@ -211,21 +221,23 @@ updatefivem --check
 Install/update artifacts:
 
 ```bash
-sudo updatefivem
+updatefivem
 ```
+
+You should only need `sudo` here if your FiveM server directory is owned by root or another user and your current user cannot replace `alpine/` and `run.sh`.
 
 By default, before replacing `alpine/` and `run.sh`, `updatefivem` checks whether the configured FiveM service is currently running. If it is running, it asks you to confirm that the service can be stopped. If it is already stopped, it skips the stop prompt and simply updates the files. After stopping a running service and completing the update, it asks whether to start the service again.
 
 For unattended use:
 
 ```bash
-sudo updatefivem --yes
+updatefivem --yes
 ```
 
 If you want the old file-only behavior and will manage the running server yourself:
 
 ```bash
-sudo updatefivem --no-service-control
+updatefivem --no-service-control
 ```
 
 This overwrites:

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from updatefivem.config import (
@@ -19,6 +20,32 @@ def test_env_overrides_paths(monkeypatch, tmp_path):
 
     assert config_path() == cfg
     assert cache_dir() == cache
+
+
+def test_default_paths_are_user_writable_xdg_paths(monkeypatch, tmp_path):
+    xdg_config = tmp_path / "xdg-config"
+    xdg_cache = tmp_path / "xdg-cache"
+    monkeypatch.delenv("UPDATEFIVEM_CONFIG_PATH", raising=False)
+    monkeypatch.delenv("UPDATEFIVEM_CACHE_DIR", raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(xdg_cache))
+
+    assert config_path() == xdg_config / "updatefivem" / "config.json"
+    assert cache_dir() == xdg_cache / "updatefivem"
+    assert not str(config_path()).startswith("/etc/")
+    assert not str(cache_dir()).startswith("/var/")
+
+
+def test_default_paths_fallback_to_home(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    monkeypatch.delenv("UPDATEFIVEM_CONFIG_PATH", raising=False)
+    monkeypatch.delenv("UPDATEFIVEM_CACHE_DIR", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    monkeypatch.setenv("HOME", str(home))
+
+    assert config_path() == home / ".config" / "updatefivem" / "config.json"
+    assert cache_dir() == home / ".cache" / "updatefivem"
 
 
 def test_missing_config_returns_none(monkeypatch, tmp_path):
