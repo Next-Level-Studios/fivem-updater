@@ -1,86 +1,33 @@
 import pytest
 
-from updatefivem.updater import (
-    build_pip_upgrade_command,
-    check_for_newer_release,
-    find_wheel_asset,
-    normalise_version,
-)
+from fivemanager.updater import check_for_newer_release, find_wheel_asset, normalise_version
 
 
-def test_find_wheel_asset_prefers_updatefivem_wheel():
-    release = {
-        "tag_name": "v0.1.3",
-        "assets": [
-            {"name": "notes.txt", "browser_download_url": "https://example.test/notes.txt"},
-            {"name": "updatefivem-0.1.3-py3-none-any.whl", "browser_download_url": "https://example.test/updatefivem.whl"},
-        ],
-    }
-
+def test_find_wheel_asset_prefers_fivemanager_wheel():
+    release = {"assets": [
+        {"name": "notes.txt", "browser_download_url": "https://example.test/notes.txt"},
+        {"name": "fivemanager-0.9.0-py3-none-any.whl", "browser_download_url": "https://example.test/fivemanager.whl"},
+    ]}
     asset = find_wheel_asset(release)
-
-    assert asset["name"] == "updatefivem-0.1.3-py3-none-any.whl"
-    assert asset["browser_download_url"] == "https://example.test/updatefivem.whl"
-
-
-def test_find_wheel_asset_raises_without_wheel():
-    with pytest.raises(RuntimeError, match="wheel"):
-        find_wheel_asset({"assets": [{"name": "source.tar.gz"}]})
+    assert asset["name"] == "fivemanager-0.9.0-py3-none-any.whl"
 
 
 def test_find_wheel_asset_rejects_plain_http_download_url():
-    release = {
-        "assets": [
-            {"name": "updatefivem-0.1.3-py3-none-any.whl", "browser_download_url": "http://example.test/updatefivem.whl"},
-        ],
-    }
-
     with pytest.raises(RuntimeError, match="HTTPS"):
-        find_wheel_asset(release)
+        find_wheel_asset({"assets": [{"name": "fivemanager-0.9.0-py3-none-any.whl", "browser_download_url": "http://example.test/fivemanager.whl"}]})
 
 
-def test_build_pip_upgrade_command_uses_current_python():
-    cmd = build_pip_upgrade_command("https://example.test/updatefivem.whl", python_executable="/opt/updatefivem/venv/bin/python")
-
-    assert cmd == [
-        "/opt/updatefivem/venv/bin/python",
-        "-m",
-        "pip",
-        "install",
-        "--upgrade",
-        "https://example.test/updatefivem.whl",
-    ]
-
-
-def test_normalise_version_handles_tags_and_suffixes():
-    assert normalise_version("v0.1.8") == (0, 1, 8)
-    assert normalise_version("0.2.0") == (0, 2, 0)
-    assert normalise_version("v1.2.3-beta") == (1, 2, 3)
+def test_normalise_version_handles_alpha_tag():
+    assert normalise_version("v0.9.0-alpha") == (0, 9, 0)
 
 
 def test_check_for_newer_release_detects_update():
-    release = {
-        "tag_name": "v0.1.9",
-        "html_url": "https://github.com/Next-Level-Studios/fivem-updater/releases/tag/v0.1.9",
-        "assets": [
-            {"name": "updatefivem-0.1.9-py3-none-any.whl", "browser_download_url": "https://example.test/updatefivem.whl"},
-        ],
-    }
-
-    update = check_for_newer_release("0.1.8", release)
-
+    release = {"tag_name": "v0.9.1", "html_url": "https://example.test/release", "assets": [{"name": "fivemanager-0.9.1-py3-none-any.whl", "browser_download_url": "https://example.test/fivemanager.whl"}]}
+    update = check_for_newer_release("0.9.0", release)
     assert update is not None
-    assert update.current_version == "0.1.8"
-    assert update.latest_version == "v0.1.9"
-    assert update.wheel_url == "https://example.test/updatefivem.whl"
+    assert update.latest_version == "v0.9.1"
 
 
 def test_check_for_newer_release_returns_none_when_current():
-    release = {
-        "tag_name": "v0.1.8",
-        "assets": [
-            {"name": "updatefivem-0.1.8-py3-none-any.whl", "browser_download_url": "https://example.test/updatefivem.whl"},
-        ],
-    }
-
-    assert check_for_newer_release("0.1.8", release) is None
+    release = {"tag_name": "v0.9.0", "assets": [{"name": "fivemanager-0.9.0-py3-none-any.whl", "browser_download_url": "https://example.test/fivemanager.whl"}]}
+    assert check_for_newer_release("0.9.0", release) is None

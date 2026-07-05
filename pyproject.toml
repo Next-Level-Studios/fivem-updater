@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "updatefivem"
-version = "0.1.14"
-description = "FiveM artifact updater and tmux-backed service manager"
+name = "fivemanager"
+version = "0.9.0"
+description = "FiveManager: FiveM runtime updater and tmux-based multi-server manager"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Next Level Studio" }]
@@ -14,13 +14,15 @@ dependencies = [
   "rich>=13",
   "requests>=2.31",
   "beautifulsoup4>=4.12",
+  "InquirerPy>=0.3.4",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 
 [project.scripts]
-updatefivem = "updatefivem.cli:app"
+fivemanager = "fivemanager.cli:app"
+updatefivem = "fivemanager.cli:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

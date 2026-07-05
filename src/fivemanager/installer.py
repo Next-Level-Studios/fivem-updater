@@ -21,17 +21,11 @@ def _validate_tar_member(root: Path, member: tarfile.TarInfo) -> bool:
     if not (member.isdir() or member.isreg() or member.issym() or member.islnk()):
         raise RuntimeError(f"Refusing to extract unsupported tar member: {member.name}")
     if member.issym() or member.islnk():
-        # Tar links are resolved relative to the link's containing directory.
-        # FiveM artifacts contain absolute symlinks used inside their proot
-        # layout, so allow absolute symlinks. Hardlinks are different: tar may
-        # materialise them during extraction, so reject absolute hardlink targets
-        # and reject any relative link target that escapes the extraction root.
         link_target = Path(member.linkname)
         if member.islnk() and link_target.is_absolute():
             raise RuntimeError(f"Refusing to extract unsafe tar link: {member.name} -> {member.linkname}")
         if not link_target.is_absolute():
-            link_path_from_root = Path(member.name).parent / member.linkname
-            _safe_member_path(root, str(link_path_from_root))
+            _safe_member_path(root, str(Path(member.name).parent / member.linkname))
     return True
 
 
@@ -52,9 +46,8 @@ def extract_artifact(archive_path: Path, work_dir: Path) -> Path:
             root_path.chmod(root_path.stat().st_mode | 0o700)
         for dirname in dirs:
             path = Path(root) / dirname
-            if path.is_symlink():
-                continue
-            path.chmod(path.stat().st_mode | 0o700)
+            if not path.is_symlink():
+                path.chmod(path.stat().st_mode | 0o700)
     return extract_root
 
 
@@ -74,24 +67,23 @@ def validate_payload(payload_dir: Path) -> None:
         raise RuntimeError(f"Artifact payload missing run.sh: {payload_dir}")
 
 
-def install_payload(payload_dir: Path, server_dir: Path) -> None:
+def install_payload(payload_dir: Path, runtime_dir: Path) -> None:
     validate_payload(payload_dir)
-    if not server_dir.exists():
-        raise RuntimeError(f"Server directory does not exist: {server_dir}")
-    dest_alpine = server_dir / "alpine"
-    dest_run = server_dir / "run.sh"
+    if not runtime_dir.exists():
+        raise RuntimeError(f"Runtime directory does not exist: {runtime_dir}")
+    dest_alpine = runtime_dir / "alpine"
+    dest_run = runtime_dir / "run.sh"
     if dest_alpine.exists():
         shutil.rmtree(dest_alpine)
     if dest_run.exists() or dest_run.is_symlink():
         dest_run.unlink()
     shutil.copytree(payload_dir / "alpine", dest_alpine, symlinks=True)
     shutil.copy2(payload_dir / "run.sh", dest_run)
-    current_mode = dest_run.stat().st_mode
-    dest_run.chmod(current_mode | 0o111)
+    dest_run.chmod(dest_run.stat().st_mode | 0o111)
 
 
-def install_archive(archive_path: Path, cache_dir: Path, server_dir: Path) -> Path:
+def install_archive(archive_path: Path, cache_dir: Path, runtime_dir: Path) -> Path:
     extracted = extract_artifact(archive_path, cache_dir)
     payload = find_payload_dir(extracted)
-    install_payload(payload, server_dir)
+    install_payload(payload, runtime_dir)
     return payload

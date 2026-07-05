@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from updatefivem.installer import extract_artifact, find_payload_dir, install_payload, validate_payload
+from fivemanager.installer import extract_artifact, find_payload_dir, install_payload, validate_payload
 
 
 def make_tar(path: Path, members: dict[str, bytes]):

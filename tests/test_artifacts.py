@@ -1,6 +1,6 @@
 import pytest
 
-from updatefivem.artifacts import Artifact, parse_artifacts, resolve_artifact, select_blue_recommended
+from fivemanager.artifacts import Artifact, parse_artifacts, resolve_artifact, select_blue_recommended
 
 HTML = """
 <html><body>

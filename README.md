@@ -1,407 +1,345 @@
-# UpdateFivem
+# FiveManager
 
-> A polished terminal updater for FiveM Linux server artifacts, with system-wide config and a tmux-backed systemd service.
-
-`updatefivem` downloads the correct FiveM Linux artifact, installs it into your server directory, and can manage your server as a proper service while still letting you attach to the live console through tmux.
+> FiveManager is a terminal-first FiveM runtime updater and tmux-based multi-server manager.
 
 Created by AI, assisted by Next Level Studio.
 
----
+FiveManager replaces the old `updatefivem` direction with a cleaner 0.9 rewrite aimed at a future stable `1.0.0`.
 
-## What it does
-
-- Finds the latest active/recommended FiveM Linux artifact from:
-  `https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/`
-- Ignores the top `LATEST RECOMMENDED` button when it is not the artifact you actually want.
-- Selects the first active/blue artifact entry in the artifact list.
-- Downloads the `.tar.xz` artifact with a nice terminal progress bar.
-- Extracts the artifact safely, with path traversal protection.
-- Verifies the archive contains:
-  - `alpine/`
-  - `run.sh`
-- Overwrites only:
-  - `<server-dir>/alpine/`
-  - `<server-dir>/run.sh`
-- Leaves your `server.cfg`, resources, database files, and other server content alone.
-- Stores config in the user's XDG config directory by default:
-  `~/.config/updatefivem/config.json`
-- Downloads artifacts to the user's XDG cache directory by default:
-  `~/.cache/updatefivem/`
-- Can install a systemd service that launches FiveM inside tmux.
-- Lets you attach to the live server console with:
-  `updatefivem console`
-
----
-
-## Current commands
+The actual command is lowercase:
 
 ```bash
-updatefivem                         # Download and install selected artifact
-updatefivem --check                 # Show selected artifact without installing
-updatefivem --artifact <build|url>  # Install a specific build or artifact URL
-updatefivem --no-update-check       # Skip checking for newer updatefivem releases
-updatefivem --server-dir /path      # Override/save server directory
-updatefivem --config /path.cfg      # Override/save config path passed to +exec
-updatefivem --config-dir /path      # Directory containing the server cfg
-updatefivem --config-file name.cfg  # Server cfg filename
-updatefivem --yes                   # Assume yes for stop/start prompts
-updatefivem --run                   # Start the configured service after updating
-updatefivem --no-service-control    # Update files without stopping/starting service
-
-updatefivem config                  # Interactive config setup/edit
-updatefivem service install         # Install/update systemd unit
-updatefivem service install --dry-run
-
-updatefivem self-update             # Upgrade this CLI from the latest GitHub release
-updatefivem update-cli              # Alias for self-update
-
-updatefivem start
-updatefivem stop
-updatefivem restart
-updatefivem status
-updatefivem logs
-updatefivem console
+fivemanager
 ```
 
----
-
-## Requirements
-
-On the FiveM server:
-
-- Linux
-- Python 3.10+
-- `python3-venv`
-- `tmux`
-- `systemd` if you want service management
-
-Install base packages on Debian/Ubuntu:
-
-```bash
-sudo apt update
-sudo apt install -y python3 python3-venv tmux
-```
-
----
-
-## Install from GitHub release
-
-Download the latest wheel from the releases page:
-
-https://github.com/Next-Level-Studios/fivem-updater/releases
-
-Example using `v0.1.14`:
-
-```bash
-wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.14/updatefivem-0.1.14-py3-none-any.whl
-```
-
-Recommended system venv install:
-
-```bash
-sudo mkdir -p /opt/updatefivem
-sudo python3 -m venv /opt/updatefivem/venv
-sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.14-py3-none-any.whl
-sudo ln -sf /opt/updatefivem/venv/bin/updatefivem /usr/local/bin/updatefivem
-```
-
-Check it works:
-
-```bash
-updatefivem --help
-updatefivem --check
-```
-
----
-
-## First-run configuration
-
-Run as the user that will normally update the server:
-
-```bash
-updatefivem config
-```
-
-It will ask for:
-
-- FiveM artifact/server directory — the directory where `run.sh` and `alpine/` are installed
-- Server config directory
-- Server config filename
-- Service name
-- Linux user to run FiveM as
-
-Important: the server config directory does **not** have to be the same as the FiveM artifact/server directory. Use an absolute path if your `server.cfg` lives elsewhere.
-
-The generated service runs from the directory containing your selected cfg file, not from the artifact runtime directory. That means nested lines such as `exec resources.cfg` resolve beside `server.cfg`, and FiveM/txAdmin data such as `txData/` naturally belongs to that server config/profile directory. The artifact directory stays just the runtime: `run.sh` and `alpine/`.
-
-The config is saved to your user config path by default:
-
-```text
-~/.config/updatefivem/config.json
-```
-
-The artifact download cache uses:
-
-```text
-~/.cache/updatefivem/
-```
-
-Both paths respect `XDG_CONFIG_HOME` and `XDG_CACHE_HOME`. You can override them explicitly with `UPDATEFIVEM_CONFIG_PATH` and `UPDATEFIVEM_CACHE_DIR`.
-
----
-
-## Config path examples
-
-### Config inside the FiveM server directory
-
-If your server looks like this:
-
-```text
-/opt/fivem/server/
-├── run.sh
-├── alpine/
-├── resources/
-└── configs/live/production.cfg
-```
-
-Use:
-
-```bash
-updatefivem config \
-  --server-dir /opt/fivem/server \
-  --config-dir configs/live \
-  --config-file production.cfg
-```
-
-The service will run from `/opt/fivem/server/configs/live` and execute:
-
-```bash
-/opt/fivem/server/run.sh +exec production.cfg
-```
-
-### Config outside the FiveM server directory
-
-If your config lives somewhere else:
-
-```text
-/etc/fivem/configs/production.cfg
-```
-
-Use:
-
-```bash
-updatefivem config \
-  --server-dir /opt/fivem/server \
-  --config-dir /etc/fivem/configs \
-  --config-file production.cfg
-```
-
-The service will run from `/etc/fivem/configs` and execute:
-
-```bash
-/opt/fivem/server/run.sh +exec production.cfg
-```
-
-### One-shot config path
-
-You can also provide the config path directly:
-
-```bash
-updatefivem config \
-  --server-dir /opt/fivem/server \
-  --config /etc/fivem/configs/production.cfg
-```
-
----
-
-## Updating FiveM artifacts
-
-Check what artifact will be installed:
-
-```bash
-updatefivem --check
-```
-
-By default, `updatefivem` also checks GitHub for a newer CLI release before running. If one exists, it prints the release and the `updatefivem self-update` command. Skip that advisory check with:
-
-```bash
-updatefivem --no-update-check
-```
-
-Install/update artifacts:
+The old command remains as a temporary alias:
 
 ```bash
 updatefivem
 ```
 
-You should only need `sudo` here if your FiveM server directory is owned by root or another user and your current user cannot replace `alpine/` and `run.sh`.
-
-By default, before replacing `alpine/` and `run.sh`, `updatefivem` checks whether the configured FiveM service is currently running. If it is running, it asks you to confirm that the service can be stopped. If it is already stopped, it skips the stop prompt and simply updates the files. After the update completes, it asks whether to start the service.
-
-For unattended use:
-
-```bash
-updatefivem --yes
-```
-
-To start the server automatically after updating:
-
-```bash
-updatefivem --run
-```
-
-If the tmux-backed systemd service has not been installed yet, `updatefivem` will not try to start a missing unit. Install it first:
-
-```bash
-sudo updatefivem service install
-```
-
-If you decline the start prompt, `updatefivem` prints the command you can run later:
-
-```bash
-updatefivem start
-```
-
-If you want the old file-only behavior and will manage the running server yourself:
-
-```bash
-updatefivem --no-service-control
-```
-
-This overwrites:
-
-```text
-<server-dir>/alpine/
-<server-dir>/run.sh
-```
-
-It does not intentionally touch:
-
-```text
-<server-dir>/server.cfg
-<server-dir>/resources/
-<server-dir>/cache/
-<server-dir>/txData/
-```
-
-Still, this is a server updater. Backups are not cowardice; they are how adults avoid Discord panic.
+It prints a rename notice and runs the same app.
 
 ---
 
-## Updating updatefivem itself
+## Modes
 
-Once `updatefivem` is installed, you can upgrade the CLI from the latest GitHub release with:
+FiveManager has two setup modes.
+
+### Runtime updater only
+
+Use this if you only want to update the shared FXServer/FiveM runtime directory.
+
+The runtime directory is the folder containing:
+
+```text
+run.sh
+alpine/
+txData/
+```
+
+In this mode, running:
 
 ```bash
-sudo updatefivem self-update
+fivemanager
 ```
 
 or:
 
 ```bash
-sudo updatefivem update-cli
+fivemanager update-runtime
 ```
 
-Preview the pip command without running it:
+backs up the runtime and updates it.
+
+FiveManager does not check whether servers are running in runtime-only mode. If you use this mode, you are responsible for stopping anything that uses the runtime before updating. Congratulations, you are now the safety interlock.
+
+### Full server manager
+
+Use this if you want FiveManager to manage one or more FiveM servers from one shared runtime.
+
+Each server gets:
+
+```text
+<runtime>/txData/<server-key>/config.json
+<runtime>/txData/<server-key>/data/
+<runtime>/txData/<server-key>/logs/
+```
+
+Servers are started in named tmux sessions, not systemd services.
+
+FiveManager works on command. It does not run constantly in the background.
+
+---
+
+## Install
+
+Download a release wheel from GitHub.
+
+For the 0.9 rewrite:
 
 ```bash
-updatefivem self-update --dry-run
+wget https://github.com/Next-Level-Studios/fivemanager/releases/download/v0.9.0-alpha/fivemanager-0.9.0-py3-none-any.whl
+```
+
+Recommended system venv install:
+
+```bash
+sudo mkdir -p /opt/fivemanager
+sudo python3 -m venv /opt/fivemanager/venv
+sudo /opt/fivemanager/venv/bin/pip install ./fivemanager-0.9.0-py3-none-any.whl
+sudo ln -sf /opt/fivemanager/venv/bin/fivemanager /usr/local/bin/fivemanager
+sudo ln -sf /opt/fivemanager/venv/bin/updatefivem /usr/local/bin/updatefivem
+```
+
+Requirements:
+
+```bash
+sudo apt install -y python3 python3-venv tmux
 ```
 
 ---
 
-## Installing the systemd service
+## First run
 
-Preview the generated unit first:
-
-```bash
-sudo updatefivem service install --dry-run
-```
-
-Install it:
+Run:
 
 ```bash
-sudo updatefivem service install
+fivemanager
 ```
 
-Start and enable on boot:
+If no config exists, FiveManager launches the interactive setup wizard.
 
-```bash
-sudo systemctl enable --now fivem
+It asks:
+
+```text
+Do you want the full FiveM server manager experience, or just the runtime updater?
 ```
 
-If you chose a different service name, replace `fivem` with that name.
+Config is stored at:
+
+```text
+~/.config/fivemanager/config.json
+```
+
+Cache is stored at:
+
+```text
+~/.cache/fivemanager/
+```
+
+If an old config exists at:
+
+```text
+~/.config/updatefivem/config.json
+```
+
+FiveManager tells you where it is, but does not migrate it. Clean start, fewer haunted assumptions.
 
 ---
 
-## Console access
+## Runtime update and backups
 
-Attach to the live tmux console:
+Before updating the runtime, FiveManager creates a backup in:
 
-```bash
-updatefivem console
+```text
+<runtime>/backup/<date>/
 ```
 
-Detach without stopping the server:
+It backs up:
+
+```text
+alpine/
+txData/
+run.sh
+```
+
+Only the latest 3 backups are kept. Older backups are deleted automatically.
+
+Run:
+
+```bash
+fivemanager update-runtime
+```
+
+In full manager mode, if managed servers are running, FiveManager offers:
+
+- stop running managed servers and update
+- update anyway
+- cancel
+
+---
+
+## Restore
+
+Run:
+
+```bash
+fivemanager restore
+```
+
+FiveManager lists available backups and lets you choose one or cancel.
+
+Restore replaces the current:
+
+```text
+alpine/
+txData/
+run.sh
+```
+
+with the selected backup.
+
+This is runtime-level restore. It restores all txData profiles, not just one server.
+
+---
+
+## Full manager server setup
+
+For each server, FiveManager asks for:
+
+- server name
+- internal server key, suggested from the name
+- server data path, where that server’s `resources/` folder lives
+- server config path, full path to `server.cfg`
+- txAdmin port
+- FXServer port
+- interface/bind address, default `0.0.0.0`
+
+Default ports increment per server:
+
+```text
+Server 1: txAdmin 40120, FXServer 30120
+Server 2: txAdmin 40121, FXServer 30121
+Server 3: txAdmin 40122, FXServer 30122
+```
+
+FiveManager warns if another configured server already uses the same txAdmin or FXServer port.
+
+Server IDs are stable. If server 2 is removed, servers 3 and 4 remain 3 and 4. A newly added server reuses the lowest free ID.
+
+---
+
+## txAdmin config generation
+
+FiveManager generates each server’s txAdmin config from the template shape provided in `/home/neo/config.json`:
+
+```json
+{
+  "version": 2,
+  "general": {
+    "serverName": "servername"
+  },
+  "server": {
+    "dataPath": "/full/path/to/server/",
+    "cfgPath": "/full/path/to/server/server.cfg"
+  },
+  "whitelist": {
+    "mode": "approvedLicense",
+    "rejectionMessage": "Set up your server in TXAdmin"
+  },
+  "gameFeatures": {
+    "menuPageKey": "Backquote"
+  }
+}
+```
+
+At runtime, FiveManager starts each tmux session with:
+
+```bash
+TXHOST_DATA_PATH=<runtime>/txData/<server-key>
+TXHOST_TXA_PORT=<txadmin-port>
+TXHOST_FXS_PORT=<fxserver-port>
+TXHOST_INTERFACE=<interface>
+```
+
+Then it runs:
+
+```bash
+<runtime>/run.sh +exec <server.cfg filename>
+```
+
+from the directory containing that server’s cfg. This makes lines like:
+
+```cfg
+exec resources.cfg
+```
+
+resolve beside `server.cfg`, which is what FiveM admins generally expect and computers somehow needed explaining.
+
+---
+
+## Commands
+
+```bash
+fivemanager                         # setup wizard, or runtime update in runtime-only mode
+fivemanager setup                   # run setup wizard again
+fivemanager update-runtime          # backup and update shared runtime
+fivemanager restore                 # restore runtime backup
+
+fivemanager status                  # list configured servers
+fivemanager start 1                 # start server ID 1
+fivemanager stop 1                  # stop server ID 1
+fivemanager restart 1               # restart server ID 1
+fivemanager console 1               # attach to server ID 1 tmux console
+fivemanager remove 1                # remove server ID 1 from config
+
+fivemanager self-update             # update FiveManager from latest release
+```
+
+Detach from console without stopping the server:
 
 ```text
 Ctrl+B, then D
 ```
 
-That is tmux's normal detach sequence. Pressing `Ctrl+C` in the console may stop the server, so don't fat-finger that unless you mean it.
-
 ---
 
-## Service helpers
+## Status output
 
 ```bash
-updatefivem start
-updatefivem stop
-updatefivem restart
-updatefivem status
-updatefivem logs
-updatefivem console
+fivemanager status
 ```
 
-Under the hood these call `systemctl`, `journalctl`, and `tmux` for the configured service.
-
----
-
-## Development
-
-Clone and set up:
-
-```bash
-git clone https://github.com/Next-Level-Studios/fivem-updater.git
-cd fivem-updater
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -e '.[dev]'
-pytest -q
-updatefivem --help
-```
-
-Build a wheel:
-
-```bash
-python -m pip wheel . --no-deps -w dist
-```
-
----
-
-## Test status
-
-Current local test suite at time of release:
+Shows:
 
 ```text
-24 passed
+ID | Server name | Active status | Memory usage
 ```
 
-The generated systemd unit has also been checked with:
+Memory usage is best-effort current RSS from the tmux session process tree.
+
+Peak memory is intentionally not shown in 0.9.0 because FiveManager does not run as a background monitor. We can add persisted peak tracking later when a daemon/web panel exists.
+
+---
+
+## Remove behaviour
 
 ```bash
-systemd-analyze verify
+fivemanager remove 1
 ```
+
+This:
+
+- asks for confirmation
+- stops and kills the tmux session if it exists
+- removes the server from FiveManager config
+- asks whether to delete that server’s txData directory
+
+It does not delete the server data/resources path. That would be reckless, and not the fun kind.
+
+---
+
+## Road to 1.0
+
+Planned direction:
+
+- multi-server polish
+- config migration/import flow
+- stronger validation and doctor command
+- optional web panel
+- optional autostart/systemd integration
+- stable release as `1.0.0` after real server testing
 
 ---
 
@@ -409,27 +347,14 @@ systemd-analyze verify
 
 Created by AI, assisted by Next Level Studio.
 
-This project was generated and iterated with AI assistance for Next Level Studio.
-No third-party project source code was copied into this repository.
+No third-party project source code is copied into this repository.
 
-The project uses these open-source Python libraries:
+Runtime dependencies:
 
-- Typer — CLI framework
-- Rich — terminal formatting and progress UI
-- Requests — HTTP client
-- Beautiful Soup — HTML parsing
-- pytest — test runner
+- Typer
+- Rich
+- Requests
+- Beautiful Soup
+- InquirerPy
 
-It also integrates with standard Linux tools:
-
-- systemd
-- tmux
-- journalctl
-
-FiveM artifacts are provided by the FiveM/Cfx.re runtime artifact service. This project is not affiliated with or endorsed by FiveM, Cfx.re, or Rockstar Games.
-
----
-
-## License
-
-No license file has been added yet. Until one is added, all rights are reserved by the repository owner.
+FiveM and txAdmin are third-party tools/projects. FiveManager is not affiliated with Cfx.re/FiveM.
