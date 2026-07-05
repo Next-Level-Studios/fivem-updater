@@ -79,7 +79,7 @@ Download a release wheel from GitHub.
 For the 0.9 rewrite:
 
 ```bash
-wget https://github.com/Next-Level-Studios/fivemanager/releases/download/v0.9.0-alpha/fivemanager-0.9.0-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.0-alpha/fivemanager-0.9.0-py3-none-any.whl
 ```
 
 Recommended system venv install:
@@ -97,6 +97,187 @@ Requirements:
 ```bash
 sudo apt install -y python3 python3-venv tmux
 ```
+
+Check the install:
+
+```bash
+fivemanager --help
+updatefivem --help
+```
+
+The `updatefivem` command is currently only a compatibility alias. New docs, scripts, and muscle memory should use `fivemanager`.
+
+---
+
+## Upgrading from updateFivem to FiveManager
+
+FiveManager is not a tiny patch over the old updater. It is the 0.9 rewrite: new name, new config location, optional tmux multi-server management, and a cleaner runtime backup/update flow. In other words, the old tool grew up, changed its name, and now expects less chaos. Allegedly.
+
+### What changed
+
+| Old updateFivem | New FiveManager |
+| --- | --- |
+| Command: `updatefivem` | Primary command: `fivemanager` |
+| Config: `~/.config/updatefivem/config.json` | Config: `~/.config/fivemanager/config.json` |
+| Runtime updater focus | Runtime updater plus optional full server manager |
+| Older service/systemd direction | 0.9 uses tmux sessions directly for managed servers |
+| Old repository name: `fivem-updater` | New repository: `Next-Level-Studios/FiveManager` |
+
+The old `updatefivem` command is still installed as a temporary alias so existing fingers/scripts do not immediately explode. It prints a rename notice and runs the same CLI app.
+
+### Before upgrading
+
+1. Stop any FiveM servers that use the runtime you are about to manage or update.
+2. Back up your old updater config if it exists:
+
+```bash
+cp -a ~/.config/updatefivem ~/.config/updatefivem.backup.$(date +%Y%m%d-%H%M%S)
+```
+
+3. Make a note of your current paths:
+
+```bash
+realpath /path/to/your/fivem/runtime
+realpath /path/to/your/server.cfg
+```
+
+FiveManager does not automatically migrate the old config in 0.9. That is deliberate: the new model asks clearer questions and avoids dragging old assumptions into the new setup like a haunted suitcase.
+
+### Upgrade install
+
+Install FiveManager into its own system venv:
+
+```bash
+wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.0-alpha/fivemanager-0.9.0-py3-none-any.whl
+
+sudo mkdir -p /opt/fivemanager
+sudo python3 -m venv /opt/fivemanager/venv
+sudo /opt/fivemanager/venv/bin/pip install --upgrade ./fivemanager-0.9.0-py3-none-any.whl
+sudo ln -sf /opt/fivemanager/venv/bin/fivemanager /usr/local/bin/fivemanager
+sudo ln -sf /opt/fivemanager/venv/bin/updatefivem /usr/local/bin/updatefivem
+```
+
+Then run the new setup wizard:
+
+```bash
+fivemanager setup
+```
+
+Choose one of the two modes:
+
+- **Runtime updater only** if you only want backup/update/restore for the shared FiveM runtime.
+- **Full server manager** if you want FiveManager to start, stop, restart, list, and attach to servers through tmux.
+
+### Moving existing habits/scripts over
+
+Replace direct script calls gradually:
+
+```bash
+# old
+updatefivem
+
+# new
+fivemanager
+```
+
+For explicit runtime updates:
+
+```bash
+fivemanager update-runtime
+```
+
+For full manager mode:
+
+```bash
+fivemanager status
+fivemanager start 1
+fivemanager console 1
+```
+
+If you have cron jobs or shell scripts calling `updatefivem`, leave them alone until you have tested FiveManager manually. The alias exists to buy you time, not to be a permanent monument to old naming choices.
+
+### What to keep from the old setup
+
+Keep:
+
+- your FiveM runtime directory
+- your server data/resources directories
+- your `server.cfg` files
+- your old `~/.config/updatefivem/` backup until you are happy
+
+Do not copy the old config directly into `~/.config/fivemanager/config.json`. Run `fivemanager setup` and answer the prompts instead.
+
+### After upgrading
+
+Verify:
+
+```bash
+fivemanager --help
+fivemanager status
+```
+
+If you chose runtime-only mode, run an update only after stopping anything using the runtime:
+
+```bash
+fivemanager update-runtime
+```
+
+If you chose full manager mode, start one configured server and attach to its console:
+
+```bash
+fivemanager start 1
+fivemanager console 1
+```
+
+Detach from tmux with:
+
+```text
+Ctrl+B, then D
+```
+
+---
+
+## Updating FiveManager
+
+For this 0.9 alpha, the safest update path is to download the wheel from the release page and install it into the existing venv:
+
+```bash
+wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.0-alpha/fivemanager-0.9.0-py3-none-any.whl
+sudo /opt/fivemanager/venv/bin/pip install --upgrade ./fivemanager-0.9.0-py3-none-any.whl
+```
+
+There is also a CLI helper:
+
+```bash
+fivemanager self-update
+```
+
+Important alpha note: GitHub's “latest release” API ignores prereleases. Because `v0.9.0-alpha` is a prerelease, `self-update` may not see it until a non-prerelease build is published or FiveManager gets an explicit prerelease update channel.
+
+---
+
+## Uninstall
+
+This removes the FiveManager install but leaves your FiveM runtime, server data/resources, and config backups alone.
+
+```bash
+sudo rm -f /usr/local/bin/fivemanager /usr/local/bin/updatefivem
+sudo rm -rf /opt/fivemanager
+```
+
+Optional: remove FiveManager config/cache after you are sure you do not need them:
+
+```bash
+rm -rf ~/.config/fivemanager ~/.cache/fivemanager
+```
+
+Optional: remove old updateFivem config only after you are completely done with it:
+
+```bash
+rm -rf ~/.config/updatefivem
+```
+
+Do **not** delete your FiveM runtime directory, server resources, or `server.cfg` files as part of uninstalling FiveManager unless you explicitly mean to delete your actual server. Obvious, but so is “do not put diesel in a petrol car”, and yet here we are.
 
 ---
 
