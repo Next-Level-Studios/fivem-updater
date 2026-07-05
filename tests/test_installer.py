@@ -71,6 +71,36 @@ def test_extract_rejects_path_traversal(tmp_path):
         extract_artifact(archive, tmp_path / "work")
 
 
+def test_extract_allows_relative_symlink_inside_extraction_root(tmp_path):
+    archive = tmp_path / "fx-proc-mounts-link.tar.xz"
+    with tarfile.open(archive, "w:xz") as tar:
+        alpine = tarfile.TarInfo("alpine/")
+        alpine.type = tarfile.DIRTYPE
+        tar.addfile(alpine)
+        etc = tarfile.TarInfo("alpine/etc/")
+        etc.type = tarfile.DIRTYPE
+        tar.addfile(etc)
+        proc = tarfile.TarInfo("alpine/proc/")
+        proc.type = tarfile.DIRTYPE
+        tar.addfile(proc)
+
+        link = tarfile.TarInfo("alpine/etc/mtab")
+        link.type = tarfile.SYMTYPE
+        link.linkname = "../proc/mounts"
+        tar.addfile(link)
+
+        run = tarfile.TarInfo("run.sh")
+        data = b"#!/bin/sh\n"
+        run.size = len(data)
+        tar.addfile(run, io.BytesIO(data))
+
+    extracted = extract_artifact(archive, tmp_path / "work")
+
+    link_path = extracted / "alpine/etc/mtab"
+    assert link_path.is_symlink()
+    assert os.readlink(link_path) == "../proc/mounts"
+
+
 def test_extract_rejects_symlink_escaping_extract_root(tmp_path):
     archive = tmp_path / "evil-link.tar.xz"
     with tarfile.open(archive, "w:xz") as tar:

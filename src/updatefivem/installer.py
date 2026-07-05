@@ -5,6 +5,7 @@ import shutil
 import tarfile
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 
 def _safe_member_path(root: Path, member_name: str) -> Path:
@@ -15,7 +16,7 @@ def _safe_member_path(root: Path, member_name: str) -> Path:
     return target
 
 
-def _validate_tar_member(root: Path, member: tarfile.TarInfo) -> None:
+def _validate_tar_member(root: Path, member: tarfile.TarInfo) -> bool:
     _safe_member_path(root, member.name)
     if not (member.isdir() or member.isreg() or member.issym() or member.islnk()):
         raise RuntimeError(f"Refusing to extract unsupported tar member: {member.name}")
@@ -29,10 +30,12 @@ def _validate_tar_member(root: Path, member: tarfile.TarInfo) -> None:
         if member.islnk() and link_target.is_absolute():
             raise RuntimeError(f"Refusing to extract unsafe tar link: {member.name} -> {member.linkname}")
         if not link_target.is_absolute():
-            _safe_member_path((root / member.name).parent, member.linkname)
+            link_path_from_root = Path(member.name).parent / member.linkname
+            _safe_member_path(root, str(link_path_from_root))
+    return True
 
 
-def _trusted_after_validation(member: tarfile.TarInfo, _destination: str) -> tarfile.TarInfo:
+def _trusted_after_validation(member: tarfile.TarInfo, _destination: str) -> Optional[tarfile.TarInfo]:
     return member
 
 
