@@ -44,6 +44,7 @@ updatefivem --config /path.cfg      # Override/save config path passed to +exec
 updatefivem --config-dir /path      # Directory containing the server cfg
 updatefivem --config-file name.cfg  # Server cfg filename
 updatefivem --yes                   # Assume yes for stop/start prompts
+updatefivem --run                   # Start the configured service after updating
 updatefivem --no-service-control    # Update files without stopping/starting service
 
 updatefivem config                  # Interactive config setup/edit
@@ -88,10 +89,10 @@ Download the latest wheel from the releases page:
 
 https://github.com/Next-Level-Studios/fivem-updater/releases
 
-Example using `v0.1.6`:
+Example using `v0.1.7`:
 
 ```bash
-wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.6/updatefivem-0.1.6-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.7/updatefivem-0.1.7-py3-none-any.whl
 ```
 
 Recommended system venv install:
@@ -99,7 +100,7 @@ Recommended system venv install:
 ```bash
 sudo mkdir -p /opt/updatefivem
 sudo python3 -m venv /opt/updatefivem/venv
-sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.6-py3-none-any.whl
+sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.7-py3-none-any.whl
 sudo ln -sf /opt/updatefivem/venv/bin/updatefivem /usr/local/bin/updatefivem
 ```
 
@@ -226,12 +227,24 @@ updatefivem
 
 You should only need `sudo` here if your FiveM server directory is owned by root or another user and your current user cannot replace `alpine/` and `run.sh`.
 
-By default, before replacing `alpine/` and `run.sh`, `updatefivem` checks whether the configured FiveM service is currently running. If it is running, it asks you to confirm that the service can be stopped. If it is already stopped, it skips the stop prompt and simply updates the files. After stopping a running service and completing the update, it asks whether to start the service again.
+By default, before replacing `alpine/` and `run.sh`, `updatefivem` checks whether the configured FiveM service is currently running. If it is running, it asks you to confirm that the service can be stopped. If it is already stopped, it skips the stop prompt and simply updates the files. After the update completes, it asks whether to start the service.
 
 For unattended use:
 
 ```bash
 updatefivem --yes
+```
+
+To start the server automatically after updating:
+
+```bash
+updatefivem --run
+```
+
+If you decline the start prompt, `updatefivem` prints the command you can run later:
+
+```bash
+updatefivem start
 ```
 
 If you want the old file-only behavior and will manage the running server yourself:

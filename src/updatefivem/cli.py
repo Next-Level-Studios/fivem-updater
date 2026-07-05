@@ -139,13 +139,20 @@ def _prepare_service_for_update(config: dict, *, assume_yes: bool, service_contr
     return True
 
 
-def _offer_start_after_update(config: dict, *, assume_yes: bool, service_was_stopped: bool) -> None:
-    if not service_was_stopped:
+def _offer_start_after_update(config: dict, *, assume_yes: bool, service_control: bool, run_after_update: bool) -> None:
+    if not service_control:
         return
     service_name = config.get("service_name", "fivem")
-    if assume_yes or Confirm.ask(f"Update complete. Start the FiveM service '{service_name}' now?", default=True):
+    should_start = run_after_update or assume_yes or Confirm.ask(
+        f"Update complete. Would you like to start the FiveM service '{service_name}' now?",
+        default=True,
+    )
+    if should_start:
         info(f"Starting FiveM service: {service_name}")
         _run_service_action("start", service_name)
+    else:
+        console.print("Start it later with: updatefivem start")
+        console.print(f"Or directly with: sudo systemctl start {service_name}")
 
 
 @app.callback(invoke_without_command=True)
@@ -158,6 +165,7 @@ def main(
     server_cfg_file: str | None = typer.Option(None, "--config-file", help="Server config filename, e.g. production.cfg."),
     artifact: str | None = typer.Option(None, "--artifact", help="Explicit artifact build or .tar.xz URL."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Assume yes for stop/start prompts during update."),
+    run_after_update: bool = typer.Option(False, "--run", help="Start the configured FiveM service after updating."),
     service_control: bool = typer.Option(True, "--service-control/--no-service-control", help="Stop the configured service before updating and offer to start it afterwards."),
 ):
     if ctx.invoked_subcommand is not None:
@@ -170,11 +178,16 @@ def main(
             console.print(f"  URL:   {selected.url}")
             return
         config = _load_or_create_config(server_dir, server_cfg, server_cfg_dir, server_cfg_file)
-        service_was_stopped = _prepare_service_for_update(config, assume_yes=yes, service_control=service_control)
+        _prepare_service_for_update(config, assume_yes=yes, service_control=service_control)
         archive = download_artifact(selected, cache_dir())
         install_archive(archive, cache_dir(), Path(config["server_dir"]))
         success(f"Installed FiveM artifact {selected.build} into {config['server_dir']}")
-        _offer_start_after_update(config, assume_yes=yes, service_was_stopped=service_was_stopped)
+        _offer_start_after_update(
+            config,
+            assume_yes=yes,
+            service_control=service_control,
+            run_after_update=run_after_update,
+        )
         console.print(f"Console: updatefivem console  [dim](detach: Ctrl+B, then D)[/]")
     except Exception as exc:
         error(str(exc))
