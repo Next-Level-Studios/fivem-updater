@@ -21,13 +21,18 @@ def start_server(runtime_dir: Path, server: dict) -> str:
         return name
     txdata_root = runtime_dir / "txData" / server["key"]
     run_sh = runtime_dir / "run.sh"
+    cfg_path = Path(server["cfg_path"])
+    if not run_sh.is_file():
+        raise RuntimeError(f"FiveM runtime is not installed: missing {run_sh}. Run fivemanager update-runtime first.")
+    if not cfg_path.is_file():
+        raise RuntimeError(f"Server config does not exist: {cfg_path}. Run fivemanager setup or create the file before starting.")
     env = (
         f"export TXHOST_DATA_PATH={str(txdata_root)!r}; "
         f"export TXHOST_TXA_PORT={str(server['txadmin_port'])!r}; "
         f"export TXHOST_FXS_PORT={str(server['fxserver_port'])!r}; "
         f"export TXHOST_INTERFACE={server.get('interface', '0.0.0.0')!r}; "
     )
-    cmd = f"{env} cd {str(Path(server['cfg_path']).parent)!r}; {str(run_sh)!r} +exec {Path(server['cfg_path']).name!r}; code=$?; printf '\\nFiveM exited with status %s. Press Ctrl+B then D to detach.\\n' \"$code\"; exec /bin/sh"
+    cmd = f"{env} cd {str(cfg_path.parent)!r}; {str(run_sh)!r} +exec {cfg_path.name!r}; code=$?; printf '\\nFiveM exited with status %s. Press Ctrl+B then D to detach.\\n' \"$code\"; exec /bin/sh"
     subprocess.run(["tmux", "new-session", "-d", "-s", name, "/bin/sh", "-lc", cmd], check=True)
     return name
 

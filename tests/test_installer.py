@@ -49,6 +49,19 @@ def test_extract_validate_and_install_payload(tmp_path):
     assert os.access(server / "run.sh", os.X_OK)
 
 
+def test_install_payload_creates_empty_runtime_dir(tmp_path):
+    payload = tmp_path / "payload"
+    (payload / "alpine").mkdir(parents=True)
+    (payload / "run.sh").write_text("#!/bin/sh\n")
+    runtime = tmp_path / "new-runtime"
+
+    install_payload(payload, runtime)
+
+    assert (runtime / "alpine").is_dir()
+    assert (runtime / "run.sh").is_file()
+    assert os.access(runtime / "run.sh", os.X_OK)
+
+
 def test_validate_payload_rejects_missing_run_sh(tmp_path):
     payload = tmp_path / "payload"
     (payload / "alpine").mkdir(parents=True)

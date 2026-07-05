@@ -69,8 +69,7 @@ def validate_payload(payload_dir: Path) -> None:
 
 def install_payload(payload_dir: Path, runtime_dir: Path) -> None:
     validate_payload(payload_dir)
-    if not runtime_dir.exists():
-        raise RuntimeError(f"Runtime directory does not exist: {runtime_dir}")
+    runtime_dir.mkdir(parents=True, exist_ok=True)
     dest_alpine = runtime_dir / "alpine"
     dest_run = runtime_dir / "run.sh"
     if dest_alpine.exists():
