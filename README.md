@@ -86,10 +86,10 @@ Download the latest wheel from the releases page:
 
 https://github.com/Next-Level-Studios/fivem-updater/releases
 
-Example using `v0.1.4`:
+Example using `v0.1.5`:
 
 ```bash
-wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.4/updatefivem-0.1.4-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/fivem-updater/releases/download/v0.1.5/updatefivem-0.1.5-py3-none-any.whl
 ```
 
 Recommended system venv install:
@@ -97,7 +97,7 @@ Recommended system venv install:
 ```bash
 sudo mkdir -p /opt/updatefivem
 sudo python3 -m venv /opt/updatefivem/venv
-sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.4-py3-none-any.whl
+sudo /opt/updatefivem/venv/bin/pip install ./updatefivem-0.1.5-py3-none-any.whl
 sudo ln -sf /opt/updatefivem/venv/bin/updatefivem /usr/local/bin/updatefivem
 ```
 
@@ -214,7 +214,7 @@ Install/update artifacts:
 sudo updatefivem
 ```
 
-By default, before replacing `alpine/` and `run.sh`, `updatefivem` asks you to confirm that the configured FiveM service can be stopped. After the update completes, it asks whether to start the service again.
+By default, before replacing `alpine/` and `run.sh`, `updatefivem` checks whether the configured FiveM service is currently running. If it is running, it asks you to confirm that the service can be stopped. If it is already stopped, it skips the stop prompt and simply updates the files. After stopping a running service and completing the update, it asks whether to start the service again.
 
 For unattended use:
 

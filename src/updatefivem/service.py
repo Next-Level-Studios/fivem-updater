@@ -71,6 +71,12 @@ def systemctl_args(action: str, service_name: str) -> list[str]:
     return base
 
 
+def service_is_active(service_name: str) -> bool:
+    validate_service_name(service_name)
+    result = subprocess.run(["systemctl", "is-active", "--quiet", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return result.returncode == 0
+
+
 def tmux_session_exists(service_name: str) -> bool:
     validate_service_name(service_name)
     result = subprocess.run(["tmux", "has-session", "-t", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

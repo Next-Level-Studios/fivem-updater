@@ -11,7 +11,7 @@ from .artifacts import ARTIFACT_PAGE_URL, download_artifact, fetch_artifact_page
 from .config import default_run_user, load_config, merge_config, resolve_server_cfg, save_config, validate_config
 from .installer import install_archive
 from .paths import cache_dir
-from .service import install_service, systemctl_args, tmux_session_exists, validate_service_name
+from .service import install_service, service_is_active, systemctl_args, tmux_session_exists, validate_service_name
 from .ui import console, error, info, success, warn
 from .updater import run_self_update
 
@@ -115,10 +115,17 @@ def _run_service_action(action: str, service_name: str) -> None:
     subprocess.run(args, check=True)
 
 
+def _service_is_active(service_name: str) -> bool:
+    return service_is_active(service_name)
+
+
 def _prepare_service_for_update(config: dict, *, assume_yes: bool, service_control: bool) -> bool:
     if not service_control:
         return False
     service_name = config.get("service_name", "fivem")
+    if not _service_is_active(service_name):
+        info(f"FiveM service '{service_name}' is not running; skipping stop prompt.")
+        return False
     if not assume_yes:
         ready = Confirm.ask(
             f"Ready to stop the FiveM service '{service_name}' before updating?",

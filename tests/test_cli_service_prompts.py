@@ -6,6 +6,7 @@ from updatefivem import cli
 
 def test_prepare_service_for_update_stops_after_confirmation(monkeypatch):
     calls = []
+    monkeypatch.setattr(cli, "_service_is_active", lambda service_name: True)
     monkeypatch.setattr(cli.Confirm, "ask", lambda *args, **kwargs: True)
     monkeypatch.setattr(cli, "_run_service_action", lambda action, service_name: calls.append((action, service_name)))
 
@@ -15,7 +16,22 @@ def test_prepare_service_for_update_stops_after_confirmation(monkeypatch):
     assert calls == [("stop", "fivem-dev")]
 
 
+def test_prepare_service_for_update_skips_prompt_and_stop_when_service_inactive(monkeypatch):
+    calls = []
+    prompts = []
+    monkeypatch.setattr(cli, "_service_is_active", lambda service_name: False)
+    monkeypatch.setattr(cli.Confirm, "ask", lambda *args, **kwargs: prompts.append(args) or True)
+    monkeypatch.setattr(cli, "_run_service_action", lambda action, service_name: calls.append((action, service_name)))
+
+    stopped = cli._prepare_service_for_update({"service_name": "fivem-dev"}, assume_yes=False, service_control=True)
+
+    assert stopped is False
+    assert calls == []
+    assert prompts == []
+
+
 def test_prepare_service_for_update_aborts_when_not_ready(monkeypatch):
+    monkeypatch.setattr(cli, "_service_is_active", lambda service_name: True)
     monkeypatch.setattr(cli.Confirm, "ask", lambda *args, **kwargs: False)
 
     with pytest.raises(typer.Exit):
