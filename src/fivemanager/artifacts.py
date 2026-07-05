@@ -51,10 +51,7 @@ def parse_artifacts(html: str, base_url: str = ARTIFACT_PAGE_URL) -> list[Artifa
     artifacts: list[Artifact] = []
     rows = soup.find_all("tr") or soup.select(".panel-block")
     for row in rows:
-        if getattr(row, "name", None) == "a" and row.get("href") and ".tar.xz" in row.get("href"):
-            link = row
-        else:
-            link = row.find("a", href=lambda href: bool(href and ".tar.xz" in href))
+        link = row if getattr(row, "name", None) == "a" and row.get("href") and ".tar.xz" in row.get("href") else row.find("a", href=lambda href: bool(href and ".tar.xz" in href))
         if not link:
             continue
         icon = row.find(class_=lambda classes: classes and "panel-icon" in str(classes).split())
@@ -62,14 +59,7 @@ def parse_artifacts(html: str, base_url: str = ARTIFACT_PAGE_URL) -> list[Artifa
         classes = row.get("class") or []
         computed_blue = "panel-block" in classes and "is-active" in classes and icon is not None
         url = urljoin(base_url, link.get("href"))
-        artifacts.append(
-            Artifact(
-                build=_build_from_url(url, row.get_text(" ", strip=True)),
-                url=url,
-                recommended=_style_is_blue(style) or computed_blue,
-                icon_color=style,
-            )
-        )
+        artifacts.append(Artifact(_build_from_url(url, row.get_text(" ", strip=True)), url, _style_is_blue(style) or computed_blue, style))
     return artifacts
 
 
@@ -89,11 +79,15 @@ def resolve_artifact(value: str | None, artifacts: list[Artifact]) -> Artifact:
         parsed = urlparse(value)
         if not parsed.path.endswith(".tar.xz"):
             raise RuntimeError("Artifact URL must point to a .tar.xz file")
-        return Artifact(build=_build_from_url(value), url=value, recommended=False)
+        return Artifact(_build_from_url(value), value, False)
     for artifact in artifacts:
         if artifact.build == value:
             return artifact
     raise RuntimeError(f"Artifact build not found on artifacts page: {value}")
+
+
+def selected_artifact(value: str | None = None) -> Artifact:
+    return resolve_artifact(value, parse_artifacts(fetch_artifact_page(), ARTIFACT_PAGE_URL))
 
 
 def download_artifact(artifact: Artifact, cache_dir: Path) -> Path:
@@ -102,24 +96,16 @@ def download_artifact(artifact: Artifact, cache_dir: Path) -> Path:
     if not filename.endswith(".tar.xz"):
         filename = f"{artifact.build}.tar.xz"
     dest = cache_dir / f"{artifact.build}-{filename}"
-
     with requests.get(artifact.url, stream=True, timeout=60) as response:
         response.raise_for_status()
         total = int(response.headers.get("content-length") or 0)
         if dest.exists() and total and dest.stat().st_size == total:
             return dest
-        with Progress(
-            TextColumn("[bold blue]Downloading[/] {task.description}"),
-            BarColumn(),
-            DownloadColumn(),
-            TransferSpeedColumn(),
-            TimeRemainingColumn(),
-        ) as progress:
+        with Progress(TextColumn("[bold blue]Downloading[/] {task.description}"), BarColumn(), DownloadColumn(), TransferSpeedColumn(), TimeRemainingColumn()) as progress:
             task = progress.add_task(filename, total=total or None)
             with dest.open("wb") as fh:
                 for chunk in response.iter_content(chunk_size=1024 * 256):
-                    if not chunk:
-                        continue
-                    fh.write(chunk)
-                    progress.update(task, advance=len(chunk))
+                    if chunk:
+                        fh.write(chunk)
+                        progress.update(task, advance=len(chunk))
     return dest
