@@ -138,6 +138,11 @@ def restart_command(server_id: int):
 @app.command("console")
 def console_command(server_id: int):
     server = get_server(require_config(), server_id)
+    name = session_name(server)
+    if not session_exists(name):
+        warn(f"Server {server['name']} is not running; no tmux session named {name} was found.")
+        info(f"Start it with: fivemanager start {server_id}")
+        raise typer.Exit(0)
     console.print("Detach without stopping the server: Ctrl+B, then D")
     attach_console(server)
 
