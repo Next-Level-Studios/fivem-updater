@@ -79,7 +79,7 @@ Download a release wheel from GitHub.
 For the 0.9 rewrite:
 
 ```bash
-wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.5-alpha/fivemanager-0.9.5-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.6-alpha/fivemanager-0.9.6-py3-none-any.whl
 ```
 
 Recommended system venv install:
@@ -87,7 +87,7 @@ Recommended system venv install:
 ```bash
 sudo mkdir -p /opt/fivemanager
 sudo python3 -m venv /opt/fivemanager/venv
-sudo /opt/fivemanager/venv/bin/pip install ./fivemanager-0.9.5-py3-none-any.whl
+sudo /opt/fivemanager/venv/bin/pip install ./fivemanager-0.9.6-py3-none-any.whl
 sudo ln -sf /opt/fivemanager/venv/bin/fivemanager /usr/local/bin/fivemanager
 sudo ln -sf /opt/fivemanager/venv/bin/updatefivem /usr/local/bin/updatefivem
 ```
@@ -123,7 +123,7 @@ FiveManager is not a tiny patch over the old updater. It is the 0.9 rewrite: new
 | Older service/systemd direction | 0.9 uses tmux sessions directly for managed servers |
 | Old repository name: `fivem-updater` | New repository: `Next-Level-Studios/FiveManager` |
 
-The old `updatefivem` command is still installed as a temporary alias so existing fingers/scripts do not immediately explode. It prints a rename notice and runs the same CLI app.
+The old `updatefivem` command is still installed as a temporary alias so existing scripts can continue to run during the transition. It prints a rename notice and runs the same CLI app.
 
 ### Before upgrading
 
@@ -141,18 +141,18 @@ realpath /path/to/your/fivem/runtime
 realpath /path/to/your/server.cfg
 ```
 
-FiveManager does not automatically migrate the old config in 0.9. That is deliberate: the new model asks clearer questions and avoids dragging old assumptions into the new setup like a haunted suitcase.
+FiveManager does not automatically migrate the old config in 0.9. This is deliberate: the new setup asks clearer questions and keeps old path assumptions out of the new configuration.
 
 ### Upgrade install
 
 Install FiveManager into its own system venv:
 
 ```bash
-wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.5-alpha/fivemanager-0.9.5-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.6-alpha/fivemanager-0.9.6-py3-none-any.whl
 
 sudo mkdir -p /opt/fivemanager
 sudo python3 -m venv /opt/fivemanager/venv
-sudo /opt/fivemanager/venv/bin/pip install --upgrade ./fivemanager-0.9.5-py3-none-any.whl
+sudo /opt/fivemanager/venv/bin/pip install --upgrade ./fivemanager-0.9.6-py3-none-any.whl
 sudo ln -sf /opt/fivemanager/venv/bin/fivemanager /usr/local/bin/fivemanager
 sudo ln -sf /opt/fivemanager/venv/bin/updatefivem /usr/local/bin/updatefivem
 ```
@@ -194,7 +194,7 @@ fivemanager start 1
 fivemanager console 1
 ```
 
-If you have cron jobs or shell scripts calling `updatefivem`, leave them alone until you have tested FiveManager manually. The alias exists to buy you time, not to be a permanent monument to old naming choices.
+If you have cron jobs or shell scripts calling `updatefivem`, keep them unchanged until you have tested FiveManager manually. The alias is provided as a transition aid, but new scripts should use `fivemanager`.
 
 ### What to keep from the old setup
 
@@ -242,8 +242,8 @@ Ctrl+B, then D
 For this 0.9 alpha, the safest update path is to download the wheel from the release page and install it into the existing venv:
 
 ```bash
-wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.5-alpha/fivemanager-0.9.5-py3-none-any.whl
-sudo /opt/fivemanager/venv/bin/pip install --upgrade ./fivemanager-0.9.5-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.6-alpha/fivemanager-0.9.6-py3-none-any.whl
+sudo /opt/fivemanager/venv/bin/pip install --upgrade ./fivemanager-0.9.6-py3-none-any.whl
 ```
 
 There is also a CLI helper:
@@ -258,7 +258,7 @@ By default, `self-update` only follows GitHub's latest stable release and refuse
 fivemanager self-update --prerelease
 ```
 
-Use `--dry-run` with either mode to see exactly which wheel would be installed before pip touches anything. A small mercy from the software goblins.
+Use `--dry-run` with either mode to see exactly which wheel would be installed before pip makes any changes.
 
 ---
 
@@ -283,7 +283,7 @@ Optional: remove old updateFivem config only after you are completely done with 
 rm -rf ~/.config/updatefivem
 ```
 
-Do **not** delete your FiveM runtime directory, server resources, or `server.cfg` files as part of uninstalling FiveManager unless you explicitly mean to delete your actual server. Obvious, but so is “do not put diesel in a petrol car”, and yet here we are.
+Do **not** delete your FiveM runtime directory, server resources, or `server.cfg` files as part of uninstalling FiveManager unless you explicitly mean to delete your actual server data.
 
 ---
 
@@ -309,7 +309,7 @@ FiveManager now supports both existing servers and brand-new installs:
 - If the runtime directory does not exist yet, FiveManager can create it and download/install the recommended FiveM Linux runtime there.
 - If the directory exists but is empty or incomplete, FiveManager can install the runtime into it.
 - In full manager mode, if your server data path does not exist yet, FiveManager can create it with a `resources/` folder.
-- If your `server.cfg` does not exist yet, FiveManager can create a minimal starter config so first-time users are not expected to already have a full server tree. Radical idea: installers installing things.
+- If your `server.cfg` does not exist yet, FiveManager can create a minimal starter config so first-time users are not expected to already have a full server tree.
 
 Config is stored at:
 
@@ -329,7 +329,7 @@ If an old config exists at:
 ~/.config/updatefivem/config.json
 ```
 
-FiveManager tells you where it is, but does not migrate it. Clean start, fewer haunted assumptions.
+FiveManager tells you where it is, but does not migrate it automatically. This keeps the new configuration separate and avoids copying old path assumptions into a new install.
 
 ---
 
@@ -463,7 +463,7 @@ cd <runtime>
 <runtime>/run.sh
 ```
 
-txAdmin reads `<runtime>/txData/<server-key>/default/config.json`, then starts the managed FXServer process using the configured `cfgPath`. FiveManager deliberately does **not** pass `+exec <server.cfg>` to the top-level `run.sh`, because that starts FXServer directly and can bypass txAdmin. Computers: still choosing violence.
+txAdmin reads `<runtime>/txData/<server-key>/default/config.json`, then starts the managed FXServer process using the configured `cfgPath`. FiveManager deliberately does **not** pass `+exec <server.cfg>` to the top-level `run.sh`, because that starts FXServer directly and can bypass txAdmin.
 
 ---
 

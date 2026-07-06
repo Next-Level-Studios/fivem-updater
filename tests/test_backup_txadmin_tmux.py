@@ -130,7 +130,7 @@ def test_setup_wizard_can_bootstrap_brand_new_server(monkeypatch, tmp_path):
     updates = []
     starts = []
 
-    monkeypatch.setattr("fivemanager.wizard.ask_select", lambda message, choices: "manager" if "experience" in message else "done")
+    monkeypatch.setattr("fivemanager.wizard.ask_select", lambda message, choices: "manager" if "What do you want" in message else "done")
     monkeypatch.setattr("fivemanager.wizard.ask_text", lambda *args, **kwargs: next(text_answers))
     monkeypatch.setattr("fivemanager.wizard.ask_confirm", lambda *args, **kwargs: True)
     monkeypatch.setattr("fivemanager.wizard.ask_checkbox", lambda *args, **kwargs: [1])

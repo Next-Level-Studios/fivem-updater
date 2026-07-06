@@ -70,7 +70,7 @@ def main(
         _update_runtime(config, force=True, artifact=artifact)
         return
     console.print("[bold cyan]FiveManager[/] is configured in full manager mode.")
-    console.print("Use [bold]fivemanager status[/], [bold]fivemanager start <id>[/], or [bold]fivemanager update-runtime[/].")
+    console.print("Use [bold]fivemanager status[/] to view servers, [bold]fivemanager start <id>[/] to start one, or [bold]fivemanager update-runtime[/] to update the shared runtime.")
 
 
 @app.command("setup")
@@ -99,7 +99,7 @@ def restore_command():
     if choice == "cancel":
         return
     selected = backups[int(choice) - 1]
-    warn("Current alpine/, txData/, and run.sh will be replaced.")
+    warn("This restore will replace the current alpine/, txData/, and run.sh in the runtime directory.")
     if not ask_confirm(f"Restore backup {selected.name}?", default=False):
         warn("Restore cancelled.")
         return
@@ -140,10 +140,10 @@ def console_command(server_id: int):
     server = get_server(require_config(), server_id)
     name = session_name(server)
     if not session_exists(name):
-        warn(f"Server {server['name']} is not running; no tmux session named {name} was found.")
-        info(f"Start it with: fivemanager start {server_id}")
+        warn(f"Server {server['name']} is not running. FiveManager could not find tmux session {name}.")
+        info(f"Start the server first with: fivemanager start {server_id}")
         raise typer.Exit(0)
-    console.print("Detach without stopping the server: Ctrl+B, then D")
+    console.print("Attach to the server console. To leave the console without stopping the server, press Ctrl+B, then D.")
     attach_console(server)
 
 
@@ -166,7 +166,7 @@ def status_command():
 def remove_command(server_id: int):
     config = require_config()
     server = get_server(config, server_id)
-    warn(f"This will remove {server['name']} from FiveManager and stop its tmux session if present.")
+    warn(f"This will remove {server['name']} from FiveManager and stop its tmux session if it is running.")
     if not ask_confirm("Continue?", default=False):
         return
     stop_server(server)
