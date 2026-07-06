@@ -6,7 +6,7 @@ from typing import Any, cast
 from fivemanager.backup import create_backup, list_backups, restore_backup
 from fivemanager.tmux import start_server, stop_server
 from fivemanager.txadmin import build_txadmin_config, load_template, write_txadmin_profile
-from fivemanager.wizard import prepare_server_paths, run_setup_wizard
+from fivemanager.wizard import ask_path, prepare_server_paths, run_setup_wizard
 
 
 def test_backup_prunes_to_three_and_restore_replaces_runtime(tmp_path):
@@ -64,6 +64,33 @@ def test_txadmin_default_template_path_uses_current_home():
     import fivemanager.txadmin as txadmin
 
     assert txadmin.TEMPLATE_PATH == Path.home() / ".config" / "fivemanager" / "txadmin-template.json"
+
+
+def test_ask_path_uses_inquirer_filepath_completion(monkeypatch):
+    calls = []
+
+    class FakePrompt:
+        def execute(self):
+            return " /home/fivem/FiveM-Server "
+
+    class FakeInquirer:
+        def filepath(self, **kwargs):
+            calls.append(kwargs)
+            return FakePrompt()
+
+    monkeypatch.setattr("fivemanager.wizard._inquirer", lambda: FakeInquirer())
+
+    result = ask_path("Runtime path", default="/home/fivem", only_directories=True)
+
+    assert result == "/home/fivem/FiveM-Server"
+    assert calls == [{"message": "Runtime path", "default": "/home/fivem", "only_directories": True}]
+
+
+def test_ask_path_falls_back_to_text_prompt_without_inquirer(monkeypatch):
+    monkeypatch.setattr("fivemanager.wizard._inquirer", lambda: None)
+    monkeypatch.setattr("builtins.input", lambda prompt: " /srv/fivem ")
+
+    assert ask_path("Runtime path", only_directories=True) == "/srv/fivem"
 
 
 def test_prepare_server_paths_creates_resources_and_starter_cfg(monkeypatch, tmp_path):
@@ -132,6 +159,7 @@ def test_setup_wizard_can_bootstrap_brand_new_server(monkeypatch, tmp_path):
 
     monkeypatch.setattr("fivemanager.wizard.ask_select", lambda message, choices: "manager" if "What do you want" in message else "done")
     monkeypatch.setattr("fivemanager.wizard.ask_text", lambda *args, **kwargs: next(text_answers))
+    monkeypatch.setattr("fivemanager.wizard.ask_path", lambda *args, **kwargs: next(text_answers))
     monkeypatch.setattr("fivemanager.wizard.ask_confirm", lambda *args, **kwargs: True)
     monkeypatch.setattr("fivemanager.wizard.ask_checkbox", lambda *args, **kwargs: [1])
 

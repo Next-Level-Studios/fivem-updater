@@ -76,6 +76,7 @@ def test_add_command_appends_server_bootstraps_profile_and_does_not_start_when_d
     starts = []
 
     monkeypatch.setattr("fivemanager.wizard.ask_text", lambda *args, **kwargs: next(answers))
+    monkeypatch.setattr("fivemanager.wizard.ask_path", lambda *args, **kwargs: next(answers))
     monkeypatch.setattr("fivemanager.wizard.ask_confirm", lambda *args, **kwargs: True)
     monkeypatch.setattr(cli, "ask_confirm", lambda *args, **kwargs: False)
     monkeypatch.setattr(cli, "start_server_by_id", lambda config, sid: starts.append(sid))
@@ -111,6 +112,7 @@ def test_add_command_starts_new_server_when_requested(monkeypatch, tmp_path):
     starts = []
 
     monkeypatch.setattr("fivemanager.wizard.ask_text", lambda *args, **kwargs: next(answers))
+    monkeypatch.setattr("fivemanager.wizard.ask_path", lambda *args, **kwargs: next(answers))
     monkeypatch.setattr("fivemanager.wizard.ask_confirm", lambda *args, **kwargs: True)
     monkeypatch.setattr(cli, "ask_confirm", lambda *args, **kwargs: True)
     monkeypatch.setattr(cli, "start_server_by_id", lambda config, sid: starts.append(sid))

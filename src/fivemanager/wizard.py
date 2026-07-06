@@ -29,6 +29,14 @@ def ask_text(message: str, default: str | None = None) -> str:
     return value or (default or "")
 
 
+def ask_path(message: str, default: str | None = None, *, only_directories: bool = False) -> str:
+    iq = _inquirer()
+    if iq:
+        filepath_prompt = getattr(iq, "filepath")
+        return filepath_prompt(message=message, default=default or "", only_directories=only_directories).execute().strip()
+    return ask_text(message, default=default)
+
+
 def ask_port(message: str, default: int) -> int:
     while True:
         raw = ask_text(message, default=str(default))
@@ -112,7 +120,7 @@ def runtime_ready(path: Path) -> bool:
 
 def ask_runtime_dir() -> tuple[Path, bool]:
     while True:
-        value = ask_text("FiveM runtime directory - folder where FiveM server runtime files live, usually containing run.sh and alpine/. Use an existing runtime folder, or enter a new folder FiveManager can create")
+        value = ask_path("FiveM runtime directory - folder where FiveM server runtime files live, usually containing run.sh and alpine/. Use an existing runtime folder, or enter a new folder FiveManager can create", only_directories=True)
         path = Path(value).expanduser()
         errors = validate_runtime_dir(path)
         if not errors:
@@ -162,8 +170,8 @@ def add_server_interactively(config: dict, runtime: Path | None = None) -> dict:
                 break
             warn("Display name cannot be blank.")
         key = ask_text("Short internal server key (letters, numbers, hyphens, or underscores)", default=slugify(name))
-        data_path = ask_text("Server data folder - where this server's resources folder will live. For a new server, enter a new folder path")
-        cfg_path = ask_text("Server config file - full path to this server's server.cfg. If it does not exist, FiveManager can create a starter config")
+        data_path = ask_path("Server data folder - where this server's resources folder will live. For a new server, enter a new folder path", only_directories=True)
+        cfg_path = ask_path("Server config file - full path to this server's server.cfg. If it does not exist, FiveManager can create a starter config")
         prepare_server_paths(name, Path(data_path).expanduser(), Path(cfg_path).expanduser())
         txa_port = ask_port("txAdmin web panel port - browser/admin UI port", default=txa)
         fxs_port = ask_port("FXServer game port - player connection port", default=fxs)
