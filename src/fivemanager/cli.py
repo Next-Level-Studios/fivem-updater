@@ -36,7 +36,7 @@ def _update_runtime(config: dict, *, force: bool = False, artifact: str | None =
                 "Managed servers are running. What should FiveManager do before updating the runtime?",
                 [
                     ("Stop running managed servers and update", "stop"),
-                    ("Update anyway", "anyway"),
+                    ("Update without stopping managed servers (not recommended)", "anyway"),
                     ("Cancel", "cancel"),
                 ],
             )
@@ -70,7 +70,7 @@ def main(
         _update_runtime(config, force=True, artifact=artifact)
         return
     console.print("[bold cyan]FiveManager[/] is configured in full manager mode.")
-    console.print("Use [bold]fivemanager status[/] to view servers, [bold]fivemanager start <id>[/] to start one, or [bold]fivemanager update-runtime[/] to update the shared runtime.")
+    console.print("Use [bold]fivemanager status[/] to view server IDs and running state. Then use [bold]fivemanager start <id>[/], [bold]fivemanager stop <id>[/], [bold]fivemanager console <id>[/], or [bold]fivemanager update-runtime[/].")
 
 
 @app.command("setup")
@@ -94,7 +94,7 @@ def restore_command():
     if not backups:
         warn("No backups found.")
         return
-    choices = [(f"{idx}. {path.name}", str(idx)) for idx, path in enumerate(backups, 1)] + [("cancel", "cancel")]
+    choices = [(f"{idx}. {path.name}", str(idx)) for idx, path in enumerate(backups, 1)] + [("Cancel", "cancel")]
     choice = ask_select("Select a backup to restore", choices)
     if choice == "cancel":
         return
@@ -172,7 +172,7 @@ def remove_command(server_id: int):
     stop_server(server)
     removed = remove_server_config(config, server_id)
     txdata = runtime_dir(config) / "txData" / removed["key"]
-    if ask_confirm(f"Also delete txData directory {txdata}?", default=False):
+    if ask_confirm(f"Also delete this server's txAdmin data/profile folder? This does not delete server resources: {txdata}", default=False):
         if txdata.exists():
             shutil.rmtree(txdata)
             success(f"Deleted {txdata}")

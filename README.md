@@ -52,7 +52,7 @@ fivemanager update-runtime
 
 backs up the runtime and updates it.
 
-FiveManager does not check whether servers are running in runtime-only mode. If you use this mode, you are responsible for stopping anything that uses the runtime before updating. Congratulations, you are now the safety interlock.
+FiveManager cannot detect external processes in runtime-only mode, so stop any servers or services using the runtime before updating.
 
 ### Full server manager
 
@@ -79,7 +79,7 @@ Download a release wheel from GitHub.
 For the 0.9 rewrite:
 
 ```bash
-wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.6-alpha/fivemanager-0.9.6-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.7-alpha/fivemanager-0.9.7-py3-none-any.whl
 ```
 
 Recommended system venv install:
@@ -87,7 +87,7 @@ Recommended system venv install:
 ```bash
 sudo mkdir -p /opt/fivemanager
 sudo python3 -m venv /opt/fivemanager/venv
-sudo /opt/fivemanager/venv/bin/pip install ./fivemanager-0.9.6-py3-none-any.whl
+sudo /opt/fivemanager/venv/bin/pip install ./fivemanager-0.9.7-py3-none-any.whl
 sudo ln -sf /opt/fivemanager/venv/bin/fivemanager /usr/local/bin/fivemanager
 sudo ln -sf /opt/fivemanager/venv/bin/updatefivem /usr/local/bin/updatefivem
 ```
@@ -111,7 +111,7 @@ The `updatefivem` command is currently only a compatibility alias. New docs, scr
 
 ## Upgrading from updateFivem to FiveManager
 
-FiveManager is not a tiny patch over the old updater. It is the 0.9 rewrite: new name, new config location, optional tmux multi-server management, and a cleaner runtime backup/update flow. In other words, the old tool grew up, changed its name, and now expects less chaos. Allegedly.
+FiveManager 0.9 is a rewrite of the old updater with a new name, new config location, optional tmux multi-server management, and a cleaner runtime backup/update flow.
 
 ### What changed
 
@@ -148,11 +148,11 @@ FiveManager does not automatically migrate the old config in 0.9. This is delibe
 Install FiveManager into its own system venv:
 
 ```bash
-wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.6-alpha/fivemanager-0.9.6-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.7-alpha/fivemanager-0.9.7-py3-none-any.whl
 
 sudo mkdir -p /opt/fivemanager
 sudo python3 -m venv /opt/fivemanager/venv
-sudo /opt/fivemanager/venv/bin/pip install --upgrade ./fivemanager-0.9.6-py3-none-any.whl
+sudo /opt/fivemanager/venv/bin/pip install --upgrade ./fivemanager-0.9.7-py3-none-any.whl
 sudo ln -sf /opt/fivemanager/venv/bin/fivemanager /usr/local/bin/fivemanager
 sudo ln -sf /opt/fivemanager/venv/bin/updatefivem /usr/local/bin/updatefivem
 ```
@@ -242,8 +242,8 @@ Ctrl+B, then D
 For this 0.9 alpha, the safest update path is to download the wheel from the release page and install it into the existing venv:
 
 ```bash
-wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.6-alpha/fivemanager-0.9.6-py3-none-any.whl
-sudo /opt/fivemanager/venv/bin/pip install --upgrade ./fivemanager-0.9.6-py3-none-any.whl
+wget https://github.com/Next-Level-Studios/FiveManager/releases/download/v0.9.7-alpha/fivemanager-0.9.7-py3-none-any.whl
+sudo /opt/fivemanager/venv/bin/pip install --upgrade ./fivemanager-0.9.7-py3-none-any.whl
 ```
 
 There is also a CLI helper:
@@ -300,7 +300,7 @@ If no config exists, FiveManager launches the interactive setup wizard.
 It asks:
 
 ```text
-Do you want the full FiveM server manager experience, or just the runtime updater?
+What do you want FiveManager to manage?
 ```
 
 FiveManager now supports both existing servers and brand-new installs:
@@ -393,13 +393,13 @@ This is runtime-level restore. It restores all txData profiles, not just one ser
 
 For each server, FiveManager asks for:
 
-- server name
-- internal server key, suggested from the name
-- server data path, where that server’s `resources/` folder lives
-- server config path, full path to `server.cfg`
-- txAdmin port
-- FXServer port
-- interface/bind address, default `0.0.0.0`
+- display name for this server
+- short internal server key
+- server data folder, where that server’s `resources/` folder lives
+- server config file, full path to `server.cfg`
+- txAdmin web panel port
+- FXServer game port
+- network bind address, default `0.0.0.0`
 
 Default ports increment per server:
 
@@ -524,7 +524,7 @@ This:
 - removes the server from FiveManager config
 - asks whether to delete that server’s txData directory
 
-It does not delete the server data/resources path. That would be reckless, and not the fun kind.
+It does not delete the server data/resources path.
 
 ---
 

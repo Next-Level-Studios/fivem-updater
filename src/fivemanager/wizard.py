@@ -99,7 +99,7 @@ def runtime_ready(path: Path) -> bool:
 
 def ask_runtime_dir() -> tuple[Path, bool]:
     while True:
-        value = ask_text("FiveM runtime directory (folder containing run.sh/alpine, or a new folder FiveManager can create)")
+        value = ask_text("FiveM runtime directory - folder where FiveM server runtime files live, usually containing run.sh and alpine/. Use an existing runtime folder, or enter a new folder FiveManager can create")
         path = Path(value).expanduser()
         errors = validate_runtime_dir(path)
         if not errors:
@@ -140,15 +140,15 @@ def prepare_server_paths(name: str, data_path: Path, cfg_path: Path) -> None:
 
 
 def run_setup_wizard(update_callback=None, start_callback=None) -> dict:
-    console.print(Panel.fit("[bold cyan]FiveManager setup[/]\nConfigure FiveManager to update your FiveM runtime, manage txAdmin profiles, and start servers from tmux sessions."))
+    console.print(Panel.fit("[bold cyan]FiveManager setup[/]\nFiveManager can download or update the FiveM server files, create txAdmin server profiles, and start or stop servers in background tmux sessions."))
     info("Runtime directory: the folder where the FiveM server artifact files live, including run.sh and alpine/.")
-    info("Server data folder: the folder for one server's resources/ folder and server.cfg file.")
+    info("Server data folder: the folder for one server's resources/ folder. The server.cfg path is entered separately.")
     if OLD_CONFIG_PATH.exists() and not config_path().exists():
         warn(f"Old updatefivem config found at {OLD_CONFIG_PATH}")
         warn(f"FiveManager will create a separate new config at {config_path()}; the old updatefivem config will not be modified.")
     mode = ask_select("What do you want FiveManager to manage?", [
-        ("Runtime updater only - download and install FiveM server artifacts", "runtime"),
-        ("Full server manager - runtime updates, txAdmin profiles, tmux start/stop, and console access", "manager"),
+        ("Runtime updater only - download/update the shared FiveM server runtime files; you will start servers yourself", "runtime"),
+        ("Full server manager - also create txAdmin profiles and let FiveManager start/stop servers for you using tmux", "manager"),
     ])
     runtime, runtime_install_needed = ask_runtime_dir()
     config = default_config()
@@ -172,15 +172,15 @@ def run_setup_wizard(update_callback=None, start_callback=None) -> dict:
         txa, fxs = next_ports(config)
         name = ask_text("Display name for this server")
         key = ask_text("Short internal server key (letters, numbers, hyphens, or underscores)", default=slugify(name))
-        data_path = ask_text("Server data folder (the folder that contains this server's resources/ folder)")
-        cfg_path = ask_text("Server config file (full path to server.cfg)")
+        data_path = ask_text("Server data folder - where this server's resources folder will live. For a new server, enter a new folder path")
+        cfg_path = ask_text("Server config file - full path to this server's server.cfg. If it does not exist, FiveManager can create a starter config")
         prepare_server_paths(name, Path(data_path).expanduser(), Path(cfg_path).expanduser())
-        txa_port = int(ask_text("txAdmin web panel port", default=str(txa)))
-        fxs_port = int(ask_text("FXServer game port", default=str(fxs)))
-        interface = ask_text("Network bind address", default="0.0.0.0")
+        txa_port = int(ask_text("txAdmin web panel port - browser/admin UI port", default=str(txa)))
+        fxs_port = int(ask_text("FXServer game port - player connection port", default=str(fxs)))
+        interface = ask_text("Network bind address - use 0.0.0.0 for all server IPs, or 127.0.0.1 for local-only testing", default="0.0.0.0")
         server = add_server(config, name=name, key=key, data_path=data_path, cfg_path=cfg_path, txadmin_port=txa_port, fxserver_port=fxs_port, interface=interface)
         profile = write_txadmin_profile(runtime, server)
-        success(f"Created txAdmin profile at {profile}")
+        success(f"Created txAdmin profile/config at {profile}. txAdmin will use this when the server starts.")
         if ask_select("What next?", [("Add another server", "add"), ("Complete setup", "done")]) == "done":
             break
     save_config(config)
@@ -191,7 +191,7 @@ def run_setup_wizard(update_callback=None, start_callback=None) -> dict:
     if not runtime_ready(runtime):
         warn("Runtime is not installed yet, so no servers will be started now. Run fivemanager update-runtime when ready.")
         return config
-    ids = ask_checkbox("Select any servers to start now. Leave blank to start them later.", [(f"{s['id']} | {s['name']}", int(s['id'])) for s in config.get('servers', [])])
+    ids = ask_checkbox("Select any configured servers to start now in tmux. Leave blank if you only want to save setup.", [(f"{s['id']} | {s['name']}", int(s['id'])) for s in config.get('servers', [])])
     if start_callback:
         for sid in ids:
             start_callback(config, sid)
