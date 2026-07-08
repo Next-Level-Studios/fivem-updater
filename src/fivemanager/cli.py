@@ -173,7 +173,8 @@ def console_command(server_id: int):
         warn(f"Server {server['name']} is not running. FiveManager could not find tmux session {name}.")
         info(f"Start the server first with: fivemanager start {server_id}")
         raise typer.Exit(0)
-    console.print("Attach to the server console. To leave the console without stopping the server, press Ctrl+B, then D.")
+    sys.stdout.write("Attach to the server console. To leave the console without stopping the server, press Ctrl+B, then D.\n")
+    sys.stdout.flush()
     attach_console(server)
 
 
